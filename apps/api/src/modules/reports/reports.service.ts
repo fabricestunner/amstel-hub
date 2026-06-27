@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 
@@ -27,7 +28,7 @@ export class ReportsService {
     });
     return toCsv(
       ['ID', 'First Name', 'Last Name', 'Phone', 'Email', 'Status', 'Lifetime Points', 'Joined'],
-      users.map((u) => [
+      users.map((u: Prisma.UserGetPayload<{ include: { wallet: true } }>) => [
         u.id,
         u.firstName,
         u.lastName,
@@ -48,7 +49,7 @@ export class ReportsService {
     });
     return toCsv(
       ['ID', 'Name', 'Code', 'Region', 'Province', 'District', 'Status', 'Customers', 'Total Points', 'Total Sales', 'National Rank'],
-      outlets.map((o) => [
+      outlets.map((o: Prisma.OutletGetPayload<{ include: { region: true; province: true; district: true } }>) => [
         o.id,
         o.name,
         o.code,
@@ -77,7 +78,7 @@ export class ReportsService {
     });
     return toCsv(
       ['ID', 'User', 'Type', 'Status', 'Points', 'Balance After', 'Campaign', 'Outlet', 'Date'],
-      txns.map((t) => [
+      txns.map((t: Prisma.PointsTransactionGetPayload<{ include: { user: { select: { phone: true } }; campaign: { select: { name: true } }; outlet: { select: { name: true } } } }>) => [
         t.id,
         t.user?.phone,
         t.type,

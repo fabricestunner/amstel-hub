@@ -114,7 +114,7 @@ export class RewardsService {
    */
   async redeem(userId: string, rewardId: string, dto: RedeemRewardDto) {
     return this.prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         const reward = await tx.reward.findFirst({
           where: { id: rewardId, deletedAt: null },
         });
