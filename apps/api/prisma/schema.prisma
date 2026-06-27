@@ -1,0 +1,783 @@
+// ════════════════════════════════════════════════════════════════════════
+//  Amstel Rewards Platform — Prisma schema
+//  PostgreSQL · normalized · soft-deletes · audit trail · anti-fraud
+//  See docs/DATABASE.md for the ER diagram and design notes.
+// ════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  ENUMS
+// ════════════════════════════════════════════════════════════════════════
+
+enum UserRole {
+  SUPER_ADMIN
+  CAMPAIGN_MANAGER
+  REGIONAL_MANAGER
+  OUTLET_MANAGER
+  CUSTOMER
+}
+
+enum UserStatus {
+  PENDING // registered, phone/email not yet verified
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum OtpPurpose {
+  PHONE_VERIFICATION
+  EMAIL_VERIFICATION
+  LOGIN
+  PASSWORD_RESET
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  PAUSED
+  ENDED
+  ARCHIVED
+}
+
+enum OutletStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum CodeType {
+  QR
+  PROMO
+  BOTTLE
+  RECEIPT
+}
+
+enum CodeStatus {
+  ACTIVE
+  REDEEMED
+  EXPIRED
+  VOID
+}
+
+enum TransactionType {
+  EARN
+  REDEEM
+  ADJUSTMENT // manual admin correction (+/-)
+  REVERSAL // fraud / chargeback reversal
+  EXPIRY // points expired
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum RewardType {
+  TOURNAMENT_ENTRY
+  MERCHANDISE
+  FREE_DRINK
+  GIFT_ITEM
+  CASH
+  COUPON
+  DIGITAL
+}
+
+enum RewardStatus {
+  ACTIVE
+  INACTIVE
+  OUT_OF_STOCK
+  ARCHIVED
+}
+
+enum RedemptionStatus {
+  PENDING
+  APPROVED
+  FULFILLED
+  REJECTED
+  CANCELLED
+}
+
+enum TournamentStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TournamentStage {
+  ROUND_OF_32
+  ROUND_OF_16
+  QUARTER_FINAL
+  SEMI_FINAL
+  FINAL
+  THIRD_PLACE
+}
+
+enum MatchStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  WALKOVER
+  CANCELLED
+}
+
+enum RegistrationStatus {
+  REGISTERED
+  CONFIRMED
+  CHECKED_IN
+  ELIMINATED
+  WINNER
+  RUNNER_UP
+  WITHDRAWN
+  NO_SHOW
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  READ
+}
+
+enum LeaderboardType {
+  CUSTOMER_MONTHLY
+  CUSTOMER_LIFETIME
+  OUTLET_NATIONAL
+  OUTLET_REGIONAL
+  OUTLET_CAMPAIGN
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum FraudStatus {
+  OPEN
+  REVIEWING
+  CONFIRMED
+  DISMISSED
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  IDENTITY & ACCESS (RBAC)
+// ════════════════════════════════════════════════════════════════════════
+
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  email         String?    @unique
+  phone         String     @unique
+  passwordHash  String?
+  firstName     String?
+  lastName      String?
+  avatarUrl     String?
+  role          UserRole   @default(CUSTOMER)
+  status        UserStatus @default(PENDING)
+  emailVerified Boolean    @default(false)
+  phoneVerified Boolean    @default(false)
+  lastLoginAt   DateTime?
+
+  // org scoping (nullable: customers have none)
+  regionId String? @db.Uuid
+  region   Region? @relation(fields: [regionId], references: [id])
+
+  // outlet a customer registered through / a manager runs
+  managedOutlet Outlet? @relation("OutletManager")
+
+  // relations
+  permissions     UserPermission[]
+  refreshTokens   RefreshToken[]
+  otpCodes        OtpCode[]
+  wallet          Wallet?
+  redemptions     CodeRedemption[]
+  pointsTxns      PointsTransaction[]
+  rewardClaims    RewardRedemption[]
+  tournamentRegs  TournamentRegistration[]
+  notifications   Notification[]
+  notifPrefs      NotificationPreference[]
+  deviceTokens    DeviceToken[]
+  loginAudits     LoginAudit[]
+  fraudFlags      FraudFlag[]              @relation("FlaggedUser")
+  auditLogs       AuditLog[]              @relation("ActorAuditLogs")
+  customersAtOutlet Outlet?               @relation("OutletCustomers", fields: [registeredOutletId], references: [id])
+  registeredOutletId String?              @db.Uuid
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // soft delete
+
+  @@index([role, status])
+  @@index([regionId])
+  @@index([registeredOutletId])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  key         String           @unique // e.g. "campaign:create"
+  description String?
+  users       UserPermission[]
+
+  @@map("permissions")
+}
+
+// Per-user permission overrides on top of role defaults.
+model UserPermission {
+  userId       String     @db.Uuid
+  permissionId String     @db.Uuid
+  granted      Boolean    @default(true)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, permissionId])
+  @@map("user_permissions")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // sha-256 of the refresh token
+  family    String    @db.Uuid // rotation family for reuse detection
+  userAgent String?
+  ipAddress String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([family])
+  @@map("refresh_tokens")
+}
+
+model OtpCode {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @db.Uuid
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose     OtpPurpose
+  codeHash    String // hashed OTP
+  attempts    Int        @default(0)
+  consumedAt  DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime   @default(now())
+
+  @@index([userId, purpose])
+  @@map("otp_codes")
+}
+
+model LoginAudit {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @db.Uuid
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  success   Boolean
+  ipAddress String?
+  userAgent String?
+  geoCity   String?
+  geoCountry String?
+  reason    String? // failure reason
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([ipAddress])
+  @@map("login_audits")
+}
+
+model DeviceToken {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique // FCM/APNS token
+  platform  String // ios | android | web
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  GEOGRAPHY (Region › Province › District › Outlet)
+// ════════════════════════════════════════════════════════════════════════
+
+model Region {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String     @unique
+  code      String     @unique
+  provinces Province[]
+  outlets   Outlet[]
+  managers  User[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deletedAt DateTime?
+
+  @@map("regions")
+}
+
+model Province {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  regionId  String     @db.Uuid
+  region    Region     @relation(fields: [regionId], references: [id])
+  districts District[]
+  outlets   Outlet[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([regionId, name])
+  @@index([regionId])
+  @@map("provinces")
+}
+
+model District {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  provinceId String   @db.Uuid
+  province   Province @relation(fields: [provinceId], references: [id])
+  outlets    Outlet[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([provinceId, name])
+  @@index([provinceId])
+  @@map("districts")
+}
+
+model Outlet {
+  id         String       @id @default(uuid()) @db.Uuid
+  name       String
+  code       String       @unique
+  status     OutletStatus @default(ACTIVE)
+  address    String?
+  latitude   Float?
+  longitude  Float?
+
+  regionId   String   @db.Uuid
+  region     Region   @relation(fields: [regionId], references: [id])
+  provinceId String   @db.Uuid
+  province   Province @relation(fields: [provinceId], references: [id])
+  districtId String   @db.Uuid
+  district   District @relation(fields: [districtId], references: [id])
+
+  // one manager per outlet (1:1)
+  managerId String? @unique @db.Uuid
+  manager   User?   @relation("OutletManager", fields: [managerId], references: [id])
+
+  // denormalized rolling metrics (refreshed by leaderboard job)
+  totalSales      Decimal @default(0) @db.Decimal(14, 2)
+  totalPoints     BigInt  @default(0)
+  customerCount   Int     @default(0)
+  nationalRank    Int?
+  regionalRank    Int?
+
+  customers       User[]              @relation("OutletCustomers")
+  codeRedemptions CodeRedemption[]
+  pointsTxns      PointsTransaction[]
+  leaderboardRows LeaderboardEntry[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([regionId])
+  @@index([provinceId])
+  @@index([districtId])
+  @@index([status])
+  @@map("outlets")
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  CAMPAIGNS
+// ════════════════════════════════════════════════════════════════════════
+
+model Campaign {
+  id          String         @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String         @unique
+  description String?
+  status      CampaignStatus @default(DRAFT)
+  bannerUrl   String?
+
+  startsAt DateTime
+  endsAt   DateTime
+
+  // points config
+  pointsPerCode  Int @default(0)
+  pointsExpiryDays Int? // null = never expire
+
+  createdById String? @db.Uuid
+
+  codes           LoyaltyCode[]
+  pointsTxns      PointsTransaction[]
+  rewards         Reward[]
+  tournaments     Tournament[]
+  leaderboardRows LeaderboardEntry[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([status])
+  @@index([startsAt, endsAt])
+  @@map("campaigns")
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  LOYALTY ENGINE  (codes · wallet · transactions)
+// ════════════════════════════════════════════════════════════════════════
+
+model LoyaltyCode {
+  id         String     @id @default(uuid()) @db.Uuid
+  campaignId String     @db.Uuid
+  campaign   Campaign   @relation(fields: [campaignId], references: [id])
+  type       CodeType
+  // public lookup hash (sha-256) — the raw code is never stored in plaintext
+  codeHash   String     @unique
+  // AES-256-GCM encrypted raw code (for audit/reissue); never returned to clients
+  codeCipher String
+  pointsValue Int
+  status     CodeStatus @default(ACTIVE)
+  batchId    String?    @db.Uuid // bulk-generation batch
+  expiresAt  DateTime?
+
+  redemption CodeRedemption?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId, status])
+  @@index([batchId])
+  @@map("loyalty_codes")
+}
+
+// A successful one-time redemption of a code by a customer.
+model CodeRedemption {
+  id        String      @id @default(uuid()) @db.Uuid
+  codeId    String      @unique @db.Uuid // enforces one-time use
+  code      LoyaltyCode @relation(fields: [codeId], references: [id])
+  userId    String      @db.Uuid
+  user      User        @relation(fields: [userId], references: [id])
+  outletId  String?     @db.Uuid
+  outlet    Outlet?     @relation(fields: [outletId], references: [id])
+  points    Int
+
+  // anti-fraud context captured at redemption time
+  ipAddress String?
+  userAgent String?
+  deviceId  String?
+  geoLat    Float?
+  geoLng    Float?
+
+  transaction PointsTransaction?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([outletId])
+  @@map("code_redemptions")
+}
+
+model Wallet {
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String  @unique @db.Uuid
+  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availablePoints BigInt @default(0)
+  redeemedPoints  BigInt @default(0)
+  lifetimePoints  BigInt @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("wallets")
+}
+
+model PointsTransaction {
+  id         String            @id @default(uuid()) @db.Uuid
+  userId     String            @db.Uuid
+  user       User              @relation(fields: [userId], references: [id])
+  campaignId String?           @db.Uuid
+  campaign   Campaign?         @relation(fields: [campaignId], references: [id])
+  outletId   String?           @db.Uuid
+  outlet     Outlet?           @relation(fields: [outletId], references: [id])
+
+  type       TransactionType
+  status     TransactionStatus @default(COMPLETED)
+  points     Int // signed: +earn / -redeem
+  balanceAfter BigInt
+  description String?
+
+  // optional source links (exactly one is typically set)
+  codeRedemptionId String?         @unique @db.Uuid
+  codeRedemption   CodeRedemption? @relation(fields: [codeRedemptionId], references: [id])
+  rewardRedemptionId String?       @unique @db.Uuid
+  rewardRedemption   RewardRedemption? @relation(fields: [rewardRedemptionId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([campaignId])
+  @@index([type, status])
+  @@map("points_transactions")
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  REWARD ENGINE
+// ════════════════════════════════════════════════════════════════════════
+
+model Reward {
+  id            String       @id @default(uuid()) @db.Uuid
+  campaignId    String       @db.Uuid
+  campaign      Campaign     @relation(fields: [campaignId], references: [id])
+  name          String
+  description   String?
+  imageUrl      String?
+  type          RewardType
+  status        RewardStatus @default(ACTIVE)
+  pointsCost    Int
+  totalInventory Int? // null = unlimited
+  remainingInventory Int?
+  perUserLimit  Int          @default(1)
+  validFrom     DateTime?
+  validUntil    DateTime?
+
+  redemptions RewardRedemption[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([campaignId, status])
+  @@index([type])
+  @@map("rewards")
+}
+
+model RewardRedemption {
+  id        String           @id @default(uuid()) @db.Uuid
+  rewardId  String           @db.Uuid
+  reward    Reward           @relation(fields: [rewardId], references: [id])
+  userId    String           @db.Uuid
+  user      User             @relation(fields: [userId], references: [id])
+  status    RedemptionStatus @default(PENDING)
+  pointsSpent Int
+  fulfillmentRef String? // tracking number / coupon code / etc.
+  notes     String?
+  approvedById String?       @db.Uuid
+  fulfilledAt  DateTime?
+
+  transaction PointsTransaction?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([rewardId, status])
+  @@map("reward_redemptions")
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  TOURNAMENT MODULE
+// ════════════════════════════════════════════════════════════════════════
+
+model Tournament {
+  id          String           @id @default(uuid()) @db.Uuid
+  campaignId  String           @db.Uuid
+  campaign    Campaign         @relation(fields: [campaignId], references: [id])
+  name        String
+  description String?
+  venue       String
+  city        String
+  status      TournamentStatus @default(DRAFT)
+  maxPlayers  Int
+  entryPointsCost Int          @default(0)
+  registrationDeadline DateTime
+  startsAt    DateTime
+  endsAt      DateTime?
+
+  winnerId    String? @db.Uuid
+  runnerUpId  String? @db.Uuid
+
+  registrations TournamentRegistration[]
+  matches       TournamentMatch[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([campaignId, status])
+  @@index([city])
+  @@map("tournaments")
+}
+
+model TournamentRegistration {
+  id           String             @id @default(uuid()) @db.Uuid
+  tournamentId String             @db.Uuid
+  tournament   Tournament         @relation(fields: [tournamentId], references: [id])
+  userId       String             @db.Uuid
+  user         User               @relation(fields: [userId], references: [id])
+  status       RegistrationStatus @default(REGISTERED)
+  seed         Int?
+  pointsSpent  Int                @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, userId]) // one entry per customer
+  @@index([userId])
+  @@map("tournament_registrations")
+}
+
+model TournamentMatch {
+  id           String          @id @default(uuid()) @db.Uuid
+  tournamentId String          @db.Uuid
+  tournament   Tournament      @relation(fields: [tournamentId], references: [id])
+  stage        TournamentStage
+  roundIndex   Int // 0-based order within the bracket
+  matchNumber  Int
+
+  playerOneId String? @db.Uuid
+  playerTwoId String? @db.Uuid
+  winnerId    String? @db.Uuid
+  scoreOne    Int?
+  scoreTwo    Int?
+  status      MatchStatus @default(SCHEDULED)
+  scheduledAt DateTime?
+
+  // bracket linkage: winner advances into this match slot
+  nextMatchId String?           @db.Uuid
+  nextMatch   TournamentMatch?  @relation("BracketProgression", fields: [nextMatchId], references: [id])
+  feederMatches TournamentMatch[] @relation("BracketProgression")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tournamentId, stage, matchNumber])
+  @@index([tournamentId, stage])
+  @@map("tournament_matches")
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  LEADERBOARDS  (materialized snapshots, refreshed by scheduled job)
+// ════════════════════════════════════════════════════════════════════════
+
+model LeaderboardEntry {
+  id         String          @id @default(uuid()) @db.Uuid
+  type       LeaderboardType
+  // period key: "ALL" for lifetime, "2026-06" for monthly, etc.
+  period     String          @default("ALL")
+  rank       Int
+  score      BigInt
+
+  // exactly one subject is set depending on type
+  userId   String? @db.Uuid
+  outletId String? @db.Uuid
+  outlet   Outlet? @relation(fields: [outletId], references: [id])
+
+  campaignId String?   @db.Uuid
+  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  regionId   String?   @db.Uuid
+
+  computedAt DateTime @default(now())
+
+  @@unique([type, period, userId, outletId, campaignId])
+  @@index([type, period, rank])
+  @@map("leaderboard_entries")
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  NOTIFICATIONS
+// ════════════════════════════════════════════════════════════════════════
+
+model Notification {
+  id        String              @id @default(uuid()) @db.Uuid
+  userId    String              @db.Uuid
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   NotificationChannel
+  status    NotificationStatus  @default(QUEUED)
+  title     String
+  body      String
+  data      Json? // deep-link payload / metadata
+  sentAt    DateTime?
+  readAt    DateTime?
+  error     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, status])
+  @@index([channel, status])
+  @@map("notifications")
+}
+
+model NotificationPreference {
+  userId  String              @db.Uuid
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel NotificationChannel
+  enabled Boolean             @default(true)
+
+  @@id([userId, channel])
+  @@map("notification_preferences")
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  ANTI-FRAUD & AUDIT
+// ════════════════════════════════════════════════════════════════════════
+
+model FraudFlag {
+  id        String        @id @default(uuid()) @db.Uuid
+  userId    String?       @db.Uuid
+  user      User?         @relation("FlaggedUser", fields: [userId], references: [id], onDelete: SetNull)
+  type      String // e.g. "RAPID_REDEMPTION", "GEO_MISMATCH", "CODE_BRUTE_FORCE"
+  severity  FraudSeverity @default(LOW)
+  status    FraudStatus   @default(OPEN)
+  details   Json?
+  ipAddress String?
+  resolvedById String?    @db.Uuid
+  resolvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([status, severity])
+  @@index([userId])
+  @@map("fraud_flags")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  actor      User?    @relation("ActorAuditLogs", fields: [actorId], references: [id], onDelete: SetNull)
+  action     String // e.g. "campaign.update"
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@map("audit_logs")
+}
