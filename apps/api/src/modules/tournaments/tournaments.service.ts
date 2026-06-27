@@ -134,7 +134,7 @@ export class TournamentsService {
    */
   async register(tournamentId: string, userId: string) {
     return this.prisma.$transaction(
-      async (tx) => {
+      async (tx: Prisma.TransactionClient) => {
         const tournament = await tx.tournament.findFirst({
           where: { id: tournamentId, deletedAt: null },
         });
@@ -229,13 +229,13 @@ export class TournamentsService {
     }
 
     const bracketSize = this.bracketSize(regs.length);
-    const players = regs.map((r) => r.userId);
+    const players = regs.map((r: Prisma.TournamentRegistrationGetPayload<{}>) => r.userId);
 
     // Rounds from first round (bracketSize) down to the final (2 slots).
     const sizes: number[] = [];
     for (let s = bracketSize; s >= 2; s = s / 2) sizes.push(s);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Seed first-round pairings: standard 1-vs-last ordering with byes as
       // empty (null) slots padded onto the end of the player list.
       const seeded: (string | null)[] = [...players];
@@ -311,7 +311,7 @@ export class TournamentsService {
     matchId: string,
     dto: MatchResultDto,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const match = await tx.tournamentMatch.findUnique({
         where: { id: matchId },
       });
