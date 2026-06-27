@@ -1,6 +1,6 @@
 {
-  "buildCommand": "pnpm --filter @amstel/api build",
-  "outputDirectory": "apps/api/dist",
+  "buildCommand": "prisma generate && nest build",
+  "outputDirectory": "dist",
   "installCommand": "pnpm install --frozen-lockfile",
   "framework": null
 }
