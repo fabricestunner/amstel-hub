@@ -1,0 +1,92 @@
+# ──────────────────────────────────────────────────────────────
+# Render Blueprint — Amstel Rewards API (+ Redis, + Postgres link)
+# Deploy: Render Dashboard → New → Blueprint → pick this repo.
+# The web app (apps/web) is deployed separately on Vercel.
+# ──────────────────────────────────────────────────────────────
+services:
+  # ── NestJS API (Node runtime, built from the monorepo root) ──
+  - type: web
+    name: amstel-api
+    runtime: node
+    region: oregon # same region as the `amstel` Postgres for low latency
+    plan: starter
+    rootDir: .
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @amstel/api db:generate && pnpm --filter @amstel/api build
+    # Apply migrations on every deploy, then boot. Render injects PORT.
+    startCommand: pnpm --filter @amstel/api exec prisma migrate deploy && node apps/api/dist/main.js
+    healthCheckPath: /api/v1/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_GLOBAL_PREFIX
+        value: api/v1
+      # DB + cache wired automatically from the resources below.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: amstel
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: amstel-redis
+          property: connectionString
+      # Secrets — generated once by Render, kept stable across deploys.
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_ACCESS_TTL
+        value: "900"
+      - key: JWT_REFRESH_TTL
+        value: "2592000"
+      # ENCRYPTION_KEY must be 32-byte hex (64 chars). Set manually:
+      #   openssl rand -hex 32
+      - key: ENCRYPTION_KEY
+        sync: false
+      # Comma-separated allowed web origins (your Vercel domain[s]).
+      - key: API_CORS_ORIGINS
+        sync: false
+      # Object storage (Cloudflare R2 / AWS S3). Set in dashboard.
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_FORCE_PATH_STYLE
+        value: "true"
+      # Notifications (set when wiring real providers).
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMS_PROVIDER
+        value: mock
+
+  # ── Redis (Render Key Value) — cache, leaderboards, rate-limit ──
+  - type: redis
+    name: amstel-redis
+    region: oregon
+    plan: free
+    maxmemoryPolicy: noeviction
+    ipAllowList: [] # internal-only access
+
+# ── PostgreSQL ───────────────────────────────────────────────
+# Matches the `amstel` instance you created in the Render dashboard
+# (Oregon). Keeping it here makes the blueprint self-contained and
+# lets the API link via `fromDatabase`. If Render reports a conflict
+# with your existing DB, remove this block and attach the DB manually.
+databases:
+  - name: amstel
+    region: oregon
+    plan: basic-256mb
+    postgresMajorVersion: "18"
