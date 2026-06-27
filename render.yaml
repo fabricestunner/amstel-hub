@@ -11,7 +11,7 @@ services:
     region: oregon # same region as the `amstel` Postgres for low latency
     plan: starter
     rootDir: .
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @amstel/api db:generate && pnpm --filter @amstel/api build
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm rebuild argon2 && pnpm --filter @amstel/api db:generate && pnpm --filter @amstel/api build
     # Apply migrations on every deploy, then boot. Render injects PORT.
     startCommand: pnpm --filter @amstel/api exec prisma migrate deploy && node apps/api/dist/main.js
     healthCheckPath: /api/v1/health

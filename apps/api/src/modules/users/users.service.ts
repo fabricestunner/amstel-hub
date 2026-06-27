@@ -2,11 +2,14 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
+import * as argon2 from 'argon2';
 
 import { paginate } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
+  ChangePasswordDto,
   ListUsersQueryDto,
   UpdateProfileDto,
   UpdateUserRoleDto,
@@ -125,6 +128,30 @@ export class UsersService {
       data: { role: dto.role },
       select: PUBLIC_USER_FIELDS,
     });
+  }
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId, deletedAt: null },
+      select: { id: true, passwordHash: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+    const valid = await argon2.verify(user.passwordHash, dto.currentPassword);
+    if (!valid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const newHash = await argon2.hash(dto.newPassword);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: newHash },
+    });
+
+    return { success: true };
   }
 
   async getWallet(userId: string) {

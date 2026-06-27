@@ -14,6 +14,7 @@ import {
   Roles,
 } from '../../common/decorators';
 import {
+  ChangePasswordDto,
   ListUsersQueryDto,
   UpdateProfileDto,
   UpdateUserRoleDto,
@@ -47,6 +48,15 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.users.updateProfile(current.id, dto);
+  }
+
+  /** Change the authenticated user's password. */
+  @Patch('me/password')
+  changePassword(
+    @CurrentUser() current: AuthenticatedUser,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.users.changePassword(current.id, dto);
   }
 
   @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
