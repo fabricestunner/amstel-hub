@@ -1,17 +1,6 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "pnpm --filter @amstel/api build",
   "outputDirectory": "apps/api/dist",
   "installCommand": "pnpm install --frozen-lockfile",
-  "framework": null,
-  "git": {
-    "deploymentEnabled": {
-      "main": true
-    }
-  },
-  "functions": {
-    "apps/api/src/**/*.ts": {
-      "runtime": "nodejs24.x"
-    }
-  }
+  "framework": null
 }
