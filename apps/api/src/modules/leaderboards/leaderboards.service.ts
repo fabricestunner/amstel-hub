@@ -154,8 +154,11 @@ export class LeaderboardsService {
   }
 
   /**
-   * Upsert a pre-sorted set of subjects as ranked LeaderboardEntry rows.
-   * Rank is assigned by array position (callers pass them sorted desc).
+   * Replace a ranked snapshot for one (type, period). We delete the slice and
+   * re-insert rather than upsert: the unique key spans nullable columns
+   * (userId/outletId/campaignId), and in SQL NULLs are never equal — so an
+   * upsert on it could not reliably dedupe. Delete-then-insert is also faster
+   * for a full recompute. Runs atomically.
    */
   private async upsertRanked(
     type: LeaderboardType,
@@ -168,38 +171,21 @@ export class LeaderboardsService {
       campaignId?: string;
     }>,
   ): Promise<void> {
-    await this.prisma.$transaction(
-      subjects.map((s, i) =>
-        this.prisma.leaderboardEntry.upsert({
-          where: {
-            // Respects @@unique([type, period, userId, outletId, campaignId]).
-            type_period_userId_outletId_campaignId: {
-              type,
-              period,
-              userId: s.userId ?? null,
-              outletId: s.outletId ?? null,
-              campaignId: s.campaignId ?? null,
-            },
-          },
-          create: {
-            type,
-            period,
-            rank: i + 1,
-            score: s.score,
-            userId: s.userId,
-            outletId: s.outletId,
-            regionId: s.regionId,
-            campaignId: s.campaignId,
-          },
-          update: {
-            rank: i + 1,
-            score: s.score,
-            regionId: s.regionId,
-            computedAt: new Date(),
-          },
-        }),
-      ),
-    );
+    await this.prisma.$transaction([
+      this.prisma.leaderboardEntry.deleteMany({ where: { type, period } }),
+      this.prisma.leaderboardEntry.createMany({
+        data: subjects.map((s, i) => ({
+          type,
+          period,
+          rank: i + 1,
+          score: s.score,
+          userId: s.userId,
+          outletId: s.outletId,
+          regionId: s.regionId,
+          campaignId: s.campaignId,
+        })),
+      }),
+    ]);
   }
 
   private defaultPeriod(type: LeaderboardType): string {
