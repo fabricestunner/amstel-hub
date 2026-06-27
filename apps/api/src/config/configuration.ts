@@ -23,6 +23,7 @@ export interface AppConfig {
     throttleLimit: number;
   };
   redis: { url: string };
+  resend: { apiKey: string; from: string };
   smtp: {
     host: string;
     port: number;
@@ -72,6 +73,10 @@ export default (): AppConfig => ({
     throttleLimit: parseInt(process.env.THROTTLE_LIMIT ?? '120', 10),
   },
   redis: { url: process.env.REDIS_URL ?? 'redis://localhost:6379' },
+  resend: {
+    apiKey: process.env.RESEND_API_KEY ?? '',
+    from: process.env.RESEND_FROM ?? 'Amstel Rewards <no-reply@amstel-rewards.com>',
+  },
   smtp: {
     host: process.env.SMTP_HOST ?? 'localhost',
     port: parseInt(process.env.SMTP_PORT ?? '1025', 10),
