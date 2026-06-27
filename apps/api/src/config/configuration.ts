@@ -23,6 +23,23 @@ export interface AppConfig {
     throttleLimit: number;
   };
   redis: { url: string };
+  smtp: {
+    host: string;
+    port: number;
+    user: string;
+    password: string;
+    from: string;
+  };
+  sms: {
+    provider: string;
+    apiKey: string;
+    senderId: string;
+  };
+  fcm: {
+    projectId: string;
+    clientEmail: string;
+    privateKey: string;
+  };
   s3: {
     endpoint: string;
     region: string;
@@ -55,6 +72,23 @@ export default (): AppConfig => ({
     throttleLimit: parseInt(process.env.THROTTLE_LIMIT ?? '120', 10),
   },
   redis: { url: process.env.REDIS_URL ?? 'redis://localhost:6379' },
+  smtp: {
+    host: process.env.SMTP_HOST ?? 'localhost',
+    port: parseInt(process.env.SMTP_PORT ?? '1025', 10),
+    user: process.env.SMTP_USER ?? '',
+    password: process.env.SMTP_PASSWORD ?? '',
+    from: process.env.SMTP_FROM ?? 'Amstel Rewards <no-reply@amstel-rewards.com>',
+  },
+  sms: {
+    provider: process.env.SMS_PROVIDER ?? 'mock',
+    apiKey: process.env.SMS_API_KEY ?? '',
+    senderId: process.env.SMS_SENDER_ID ?? 'AMSTEL',
+  },
+  fcm: {
+    projectId: process.env.FCM_PROJECT_ID ?? '',
+    clientEmail: process.env.FCM_CLIENT_EMAIL ?? '',
+    privateKey: process.env.FCM_PRIVATE_KEY ?? '',
+  },
   s3: {
     endpoint: process.env.S3_ENDPOINT ?? 'http://localhost:9000',
     region: process.env.S3_REGION ?? 'us-east-1',

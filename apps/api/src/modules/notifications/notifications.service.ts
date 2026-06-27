@@ -7,20 +7,26 @@ import {
   ListNotificationsDto,
   UpdatePreferencesDto,
 } from './dto/notification.dto';
+import { EmailProvider } from './providers/email.provider';
+import { PushProvider } from './providers/push.provider';
+import { SmsProvider } from './providers/sms.provider';
+import { loyaltyEmailHtml } from './templates/email';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailProvider: EmailProvider,
+    private readonly smsProvider: SmsProvider,
+    private readonly pushProvider: PushProvider,
+  ) {}
 
   /**
-   * Create and (eventually) deliver a notification. For now we persist a
-   * QUEUED row and log in development; real channel adapters are future work.
-   * Other modules can inject this service to notify users.
-   *
-   * TODO: resolve the user's NotificationProvider for `channel` and send,
-   * then flip status to SENT/DELIVERED/FAILED based on the result.
+   * Create a QUEUED notification row then attempt delivery via the
+   * appropriate channel adapter. Delivery is best-effort — failures are
+   * logged but never propagated to the caller.
    */
   async dispatch(
     userId: string,
@@ -33,9 +39,89 @@ export class NotificationsService {
       data: { userId, channel, title, body, data, status: 'QUEUED' },
     });
     this.logger.debug(
-      `[notify:${channel}] -> ${userId}: ${title} (id=${notification.id})`,
+      `[notify:${channel}] → ${userId}: ${title} (id=${notification.id})`,
     );
+
+    // Check user preference for this channel; skip delivery if opted out.
+    const pref = await this.prisma.notificationPreference.findUnique({
+      where: { userId_channel: { userId, channel } },
+    });
+    if (pref && !pref.enabled) {
+      this.logger.debug(
+        `[notify:${channel}] skipped — user ${userId} opted out`,
+      );
+      return notification;
+    }
+
+    // Attempt delivery and update status.
+    let newStatus: 'SENT' | 'FAILED' = 'SENT';
+    try {
+      await this.deliver(userId, channel, title, body);
+    } catch {
+      newStatus = 'FAILED';
+    }
+
+    // Update status in background; don't await or propagate errors.
+    this.prisma.notification
+      .update({ where: { id: notification.id }, data: { status: newStatus } })
+      .catch((err: unknown) =>
+        this.logger.warn(`Failed to update notification status: ${String(err)}`),
+      );
+
     return notification;
+  }
+
+  private async deliver(
+    userId: string,
+    channel: NotificationChannel,
+    title: string,
+    body: string,
+  ): Promise<void> {
+    switch (channel) {
+      case 'IN_APP':
+        // DB row is the delivery — no external call needed.
+        break;
+
+      case 'EMAIL': {
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { email: true },
+        });
+        if (!user?.email) {
+          this.logger.warn(`EMAIL notify skipped — no email for user ${userId}`);
+          break;
+        }
+        await this.emailProvider.send(user.email, title, loyaltyEmailHtml(title, body));
+        break;
+      }
+
+      case 'SMS': {
+        const user = await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { phone: true },
+        });
+        if (!user?.phone) {
+          this.logger.warn(`SMS notify skipped — no phone for user ${userId}`);
+          break;
+        }
+        await this.smsProvider.send(user.phone, body);
+        break;
+      }
+
+      case 'PUSH': {
+        const deviceToken = await this.prisma.deviceToken.findFirst({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          select: { token: true },
+        });
+        if (!deviceToken?.token) {
+          this.logger.warn(`PUSH notify skipped — no device token for user ${userId}`);
+          break;
+        }
+        await this.pushProvider.send(deviceToken.token, title, body);
+        break;
+      }
+    }
   }
 
   async list(userId: string, query: ListNotificationsDto) {
