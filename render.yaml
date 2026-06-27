@@ -11,7 +11,7 @@ services:
     region: oregon # same region as the `amstel` Postgres for low latency
     plan: starter
     rootDir: .
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm rebuild argon2 && pnpm --filter @amstel/api db:generate && pnpm --filter @amstel/api build
+    buildCommand: pnpm install --frozen-lockfile && pnpm rebuild argon2 && pnpm --filter @amstel/api db:generate && pnpm --filter @amstel/api build
     # Apply migrations on every deploy, then boot. Render injects PORT.
     startCommand: pnpm --filter @amstel/api exec prisma migrate deploy && node apps/api/dist/main.js
     healthCheckPath: /api/v1/health
@@ -60,17 +60,18 @@ services:
         sync: false
       - key: S3_FORCE_PATH_STYLE
         value: "true"
-      # Notifications (set when wiring real providers).
-      - key: SMTP_HOST
+      # Email (Resend). Set RESEND_API_KEY in dashboard.
+      - key: RESEND_API_KEY
         sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASSWORD
-        sync: false
+      - key: RESEND_FROM
+        value: "Amstel Rewards <no-reply@amstel-rewards.com>"
+      # SMS (Mista). Set SMS_API_KEY in dashboard.
       - key: SMS_PROVIDER
-        value: mock
+        value: mista
+      - key: SMS_API_KEY
+        sync: false
+      - key: SMS_SENDER_ID
+        value: E-Notifier
 
   # ── Redis (Render Key Value) — cache, leaderboards, rate-limit ──
   - type: redis
