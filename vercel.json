@@ -1,12 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
+  "buildCommand": "pnpm --filter @amstel/api build",
+  "outputDirectory": "apps/api/dist",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm --filter @amstel/web build",
-  "outputDirectory": "apps/web/.next",
+  "framework": null,
   "git": {
     "deploymentEnabled": {
       "main": true
+    }
+  },
+  "functions": {
+    "apps/api/src/**/*.ts": {
+      "runtime": "nodejs24.x"
     }
   }
 }
