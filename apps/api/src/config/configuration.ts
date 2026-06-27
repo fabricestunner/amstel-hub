@@ -36,7 +36,8 @@ export interface AppConfig {
 export default (): AppConfig => ({
   env: process.env.NODE_ENV ?? 'development',
   api: {
-    port: parseInt(process.env.API_PORT ?? '4000', 10),
+    // Render/Railway/Heroku inject PORT; fall back to API_PORT then 4000.
+    port: parseInt(process.env.PORT ?? process.env.API_PORT ?? '4000', 10),
     globalPrefix: process.env.API_GLOBAL_PREFIX ?? 'api/v1',
     corsOrigins: (process.env.API_CORS_ORIGINS ?? 'http://localhost:3000').split(','),
   },

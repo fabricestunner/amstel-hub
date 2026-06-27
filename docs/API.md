@@ -49,13 +49,37 @@ use `/auth/refresh` to rotate. List endpoints accept
 
 ---
 
-## Roadmap endpoints (planned — see ROADMAP.md)
-- `/campaigns`, `/campaigns/:id/codes` (batch generation)
-- `/rewards`, `/rewards/:id/redeem`, `/reward-redemptions` (approval)
-- `/tournaments`, `/tournaments/:id/register`, `/tournaments/:id/bracket`
-- `/outlets`, `/outlets/:id/dashboard`
-- `/leaderboards/customers`, `/leaderboards/outlets`
-- `/analytics/overview`, `/analytics/trends`
-- `/notifications`, `/notifications/preferences`
-- `/reports/{customers,outlets,sales,points}` (csv|xlsx|pdf)
-- `/fraud/flags`, `/audit-logs`
+## Campaigns `/campaigns` *(auth)*
+| Method | Path | Roles | Notes |
+|---|---|---|---|
+| GET | `/campaigns` | SUPER_ADMIN, CAMPAIGN_MANAGER | Paginated, search, filter by status. |
+| GET | `/campaigns/active` | any | Active campaigns for customers. |
+| POST/PATCH | `/campaigns(/:id)` | SUPER_ADMIN, CAMPAIGN_MANAGER | Create / update; status state-machine. |
+| POST | `/campaigns/:id/codes/generate` | SUPER_ADMIN, CAMPAIGN_MANAGER | Bulk-generate encrypted one-time codes. |
+
+## Rewards `/rewards` · `/reward-redemptions` *(auth)*
+| GET `/rewards` | any | Active catalog (filter by campaign/type). |
+| POST `/rewards/:id/redeem` | CUSTOMER | Atomic points debit + redemption (tournament entry supported). |
+| GET `/reward-redemptions` · PATCH `/reward-redemptions/:id/{approve,reject,fulfill}` | SUPER_ADMIN, CAMPAIGN_MANAGER | Approval workflow. |
+
+## Tournaments `/tournaments` *(auth)*
+| GET list/`:id`/`:id/bracket`; POST `:id/register` (CUSTOMER); POST `:id/bracket/generate`; PATCH `:id/matches/:matchId/result` (admin). |
+
+## Outlets `/outlets` *(auth)*
+| GET `/outlets` (region/outlet-scoped), GET `/outlets/:id/dashboard`; CRUD (SUPER_ADMIN); region/province/district reads. |
+
+## Leaderboards / Analytics / Notifications *(auth)*
+| GET `/leaderboards/customers`, `/leaderboards/outlets`; GET `/analytics/overview`, `/analytics/trends`; GET/PATCH `/notifications`, `/notifications/preferences`, `/notifications/:id/read`, `/notifications/read-all`. |
+
+## Storage `/storage` *(auth)*
+| POST `/storage/presign-upload` (admin/outlet) → `{ key, uploadUrl, publicUrl }`; GET `/storage/presign-download?key=` → `{ url }`. S3/MinIO presigned. |
+
+## Reports `/reports` *(SUPER_ADMIN, CAMPAIGN_MANAGER)*
+| GET `/reports/customers.csv`, `/reports/outlets.csv`, `/reports/transactions.csv?campaignId=` — CSV download. Excel/PDF planned. |
+
+## Fraud & Audit *(admin)*
+| GET `/fraud/flags` (filter status/severity), PATCH `/fraud/flags/:id/resolve`; GET `/audit-logs` (SUPER_ADMIN). Mutations are auto-recorded by a global audit interceptor; redemption velocity is checked on every `/loyalty/redeem`.
+
+## Still on the roadmap
+- Excel (`.xlsx`) and PDF report exports + async generation to MinIO.
+- Real notification delivery adapters (SMTP / SMS / FCM) behind the queue.

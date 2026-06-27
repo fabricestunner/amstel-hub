@@ -47,7 +47,7 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  await app.listen(api.port);
+  await app.listen(api.port, '0.0.0.0');
   // eslint-disable-next-line no-console
   console.log(`🚀 API ready on http://localhost:${api.port}/${api.globalPrefix}`);
   console.log(`📚 Swagger docs on http://localhost:${api.port}/docs`);

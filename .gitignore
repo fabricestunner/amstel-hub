@@ -43,3 +43,6 @@ docker/volumes/
 
 # MinIO / uploads (local)
 uploads/
+
+# Local Prisma engines (downloaded for offline generate)
+.prisma-engines/

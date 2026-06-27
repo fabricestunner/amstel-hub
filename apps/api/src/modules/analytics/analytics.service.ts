@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/decorators';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
-interface DailyBucket {
+export interface DailyBucket {
   day: string;
   count: number;
 }
