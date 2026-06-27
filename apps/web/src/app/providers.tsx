@@ -19,7 +19,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         {children}
-        <Toaster richColors position="top-right" />
+        <Toaster
+          richColors
+          position="top-right"
+          toastOptions={{
+            classNames: {
+              toast:
+                'group rounded-lg border border-border bg-popover text-popover-foreground shadow-lg',
+              description: 'text-muted-foreground',
+              actionButton: 'bg-primary text-primary-foreground',
+              cancelButton: 'bg-muted text-muted-foreground',
+            },
+          }}
+        />
       </ThemeProvider>
     </QueryClientProvider>
   );
