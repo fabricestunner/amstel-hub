@@ -66,15 +66,17 @@ deploy, and exposes a health check at `/api/v1/health`.
 > instead connect the existing database to the service in the dashboard.
 
 ### 2. Web app on Vercel
-**New Project → import the repo → set Root Directory = `apps/web`.** Vercel
-auto-detects Next.js ([`apps/web/vercel.json`](../apps/web/vercel.json) pins
-the framework + pnpm install). Add one env var:
+**New Project → import `Pristine-technologies-ltd/amstel-hub` → leave Root
+Directory as `.` (repo root).** The root [`vercel.json`](../vercel.json) tells
+Vercel to run `pnpm --filter @amstel/web build` and output from `apps/web/.next`.
+
+Add one env var:
 | Var | Value |
 |---|---|
-| `NEXT_PUBLIC_API_URL` | `https://amstel-api.onrender.com/api/v1` (your Render API URL) |
+| `NEXT_PUBLIC_API_URL` | `https://<your-render-service>.onrender.com/api/v1` |
 
-After the API is live, copy its public Render URL into `NEXT_PUBLIC_API_URL`
-and into the API's `API_CORS_ORIGINS` (the Vercel URL) so CORS passes.
+After deploy, copy the Vercel URL into the API's `API_CORS_ORIGINS` on Render
+and redeploy the API so CORS passes.
 
 ### 3. Object storage (Cloudflare R2)
 Create an R2 bucket + API token; set the `S3_*` vars on Render. R2 is
