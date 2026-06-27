@@ -8,8 +8,10 @@ import {
   Post,
   Put,
   Query,
+  Res,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 
 import { CurrentUser, Public, Roles } from '../../common/decorators';
 import { CampaignsService } from './campaigns.service';
@@ -77,5 +79,30 @@ export class CampaignsController {
   @Post(':id/codes/generate')
   generateCodes(@Param('id') id: string, @Body() dto: GenerateCodesDto) {
     return this.campaigns.generateCodes(id, dto);
+  }
+
+  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
+  @Get(':id/codes')
+  listCodes(
+    @Param('id') id: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('batchId') batchId?: string,
+    @Query('status') status?: string,
+  ) {
+    return this.campaigns.listCodes(id, { page, limit, batchId, status });
+  }
+
+  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
+  @Get(':id/codes/:codeId/qr')
+  async getQr(
+    @Param('id') id: string,
+    @Param('codeId') codeId: string,
+    @Res() res: Response,
+  ) {
+    const buf = await this.campaigns.generateQr(id, codeId);
+    res.setHeader('Content-Type', 'image/png');
+    res.setHeader('Content-Disposition', `attachment; filename="code-${codeId}.png"`);
+    res.send(buf);
   }
 }
