@@ -40,6 +40,27 @@ export class ReportsController {
     );
   }
 
-  // TODO(reports): Excel (.xlsx via exceljs) and PDF (via pdfkit) exports,
-  // and async generation to MinIO with presigned download for large datasets.
+  private sendXlsx(res: Response, filename: string, buf: Buffer) {
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buf);
+  }
+
+  @Get('customers.xlsx')
+  async customersXlsx(@Res() res: Response) {
+    this.sendXlsx(res, 'customers.xlsx', await this.reports.customersXlsx());
+  }
+
+  @Get('outlets.xlsx')
+  async outletsXlsx(@Res() res: Response) {
+    this.sendXlsx(res, 'outlets.xlsx', await this.reports.outletsXlsx());
+  }
+
+  @Get('transactions.xlsx')
+  async transactionsXlsx(
+    @Res() res: Response,
+    @Query('campaignId') campaignId?: string,
+  ) {
+    this.sendXlsx(res, 'transactions.xlsx', await this.reports.transactionsXlsx(campaignId));
+  }
 }
