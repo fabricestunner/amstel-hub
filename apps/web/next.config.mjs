@@ -2,9 +2,9 @@
 const nextConfig = {
   reactStrictMode: true,
   output: 'standalone',
-  experimental: {
-    typedRoutes: true,
-  },
+  // NOTE: experimental.typedRoutes is intentionally disabled. The dashboards
+  // build Link hrefs from dynamic nav arrays (string), which typedRoutes
+  // rejects at build time. Re-enable only if all hrefs are typed as `Route`.
 };
 
 export default nextConfig;
