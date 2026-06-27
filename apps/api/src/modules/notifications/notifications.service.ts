@@ -1,5 +1,7 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
 import { NotificationChannel, Prisma } from '@prisma/client';
+import { Queue } from 'bullmq';
 
 import { paginate } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -7,10 +9,8 @@ import {
   ListNotificationsDto,
   UpdatePreferencesDto,
 } from './dto/notification.dto';
-import { EmailProvider } from './providers/email.provider';
-import { PushProvider } from './providers/push.provider';
-import { SmsProvider } from './providers/sms.provider';
-import { loyaltyEmailHtml } from './templates/email';
+import { NOTIFICATION_QUEUE, NotificationJobPayload } from './notification.queue';
+import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class NotificationsService {
@@ -18,15 +18,14 @@ export class NotificationsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailProvider: EmailProvider,
-    private readonly smsProvider: SmsProvider,
-    private readonly pushProvider: PushProvider,
+    @InjectQueue(NOTIFICATION_QUEUE) private readonly queue: Queue<NotificationJobPayload>,
   ) {}
 
   /**
-   * Create a QUEUED notification row then attempt delivery via the
-   * appropriate channel adapter. Delivery is best-effort — failures are
-   * logged but never propagated to the caller.
+   * Create a QUEUED notification row, check user preferences, then:
+   * - For IN_APP: mark SENT immediately (DB row is the delivery).
+   * - For EMAIL/SMS/PUSH: enqueue a BullMQ job for async delivery (3 attempts,
+   *   exponential backoff starting at 5 s). Returns without awaiting delivery.
    */
   async dispatch(
     userId: string,
@@ -53,75 +52,35 @@ export class NotificationsService {
       return notification;
     }
 
-    // Attempt delivery and update status.
-    let newStatus: 'SENT' | 'FAILED' = 'SENT';
-    try {
-      await this.deliver(userId, channel, title, body);
-    } catch {
-      newStatus = 'FAILED';
+    // IN_APP: the DB row is the notification — mark SENT and return.
+    if (channel === 'IN_APP') {
+      this.prisma.notification
+        .update({ where: { id: notification.id }, data: { status: 'SENT' } })
+        .catch((err: unknown) =>
+          this.logger.warn(`Failed to mark IN_APP notification SENT: ${String(err)}`),
+        );
+      return notification;
     }
 
-    // Update status in background; don't await or propagate errors.
-    this.prisma.notification
-      .update({ where: { id: notification.id }, data: { status: newStatus } })
-      .catch((err: unknown) =>
-        this.logger.warn(`Failed to update notification status: ${String(err)}`),
-      );
+    // EMAIL / SMS / PUSH: enqueue async delivery job.
+    const payload: NotificationJobPayload = {
+      notificationId: notification.id,
+      userId,
+      channel,
+      title,
+      body,
+    };
+
+    await this.queue.add('deliver', payload, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+    });
+
+    this.logger.debug(
+      `[notify:${channel}] job enqueued for notification ${notification.id}`,
+    );
 
     return notification;
-  }
-
-  private async deliver(
-    userId: string,
-    channel: NotificationChannel,
-    title: string,
-    body: string,
-  ): Promise<void> {
-    switch (channel) {
-      case 'IN_APP':
-        // DB row is the delivery — no external call needed.
-        break;
-
-      case 'EMAIL': {
-        const user = await this.prisma.user.findUnique({
-          where: { id: userId },
-          select: { email: true },
-        });
-        if (!user?.email) {
-          this.logger.warn(`EMAIL notify skipped — no email for user ${userId}`);
-          break;
-        }
-        await this.emailProvider.send(user.email, title, loyaltyEmailHtml(title, body));
-        break;
-      }
-
-      case 'SMS': {
-        const user = await this.prisma.user.findUnique({
-          where: { id: userId },
-          select: { phone: true },
-        });
-        if (!user?.phone) {
-          this.logger.warn(`SMS notify skipped — no phone for user ${userId}`);
-          break;
-        }
-        await this.smsProvider.send(user.phone, body);
-        break;
-      }
-
-      case 'PUSH': {
-        const deviceToken = await this.prisma.deviceToken.findFirst({
-          where: { userId },
-          orderBy: { createdAt: 'desc' },
-          select: { token: true },
-        });
-        if (!deviceToken?.token) {
-          this.logger.warn(`PUSH notify skipped — no device token for user ${userId}`);
-          break;
-        }
-        await this.pushProvider.send(deviceToken.token, title, body);
-        break;
-      }
-    }
   }
 
   async list(userId: string, query: ListNotificationsDto) {
