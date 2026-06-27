@@ -4,6 +4,15 @@ Module-by-module build plan. The `auth` + `loyalty` slice is already
 implemented as the reference pattern; every phase below follows it
 (`Controller → Service → Prisma`, DTO validation, guards, Swagger, unit tests).
 
+> **Status (backend):** Phases 0–8 are implemented and the API typechecks
+> clean with 18 passing unit tests. Done: campaigns (+bulk code gen), rewards
+> (+approval), tournaments (+brackets), outlets, leaderboards (+hourly cron),
+> analytics, notifications, **storage (S3/MinIO presigned)**, **audit (global
+> interceptor + log)**, **fraud (velocity checks + review queue, wired into
+> redemption)**, **reports (CSV)**. Remaining: BullMQ-backed notification
+> delivery, Excel/PDF reports, QR image generation, OpenTelemetry. The web app
+> typechecks clean and covers all three dashboards.
+
 ## ✅ Phase 0 — Foundation (done in this scaffold)
 - Monorepo (pnpm + Turborepo), Docker infra (Postgres/Redis/MinIO/Mailpit).
 - Full Prisma schema + seed data.
