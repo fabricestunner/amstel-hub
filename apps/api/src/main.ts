@@ -4,14 +4,17 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
+import { INestApplication } from '@nestjs/common';
 
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import type { AppConfig } from './config/configuration';
 
+let app: INestApplication;
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
 
   const config = app.get(ConfigService<AppConfig, true>);
@@ -47,9 +50,25 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  await app.listen(api.port, '0.0.0.0');
-  console.log(`API ready on http://localhost:${api.port}/${api.globalPrefix}`);
-  console.log(`Swagger docs on http://localhost:${api.port}/docs`);
+  await app.init();
+  return app;
 }
 
-bootstrap();
+// Local development: listen on port
+if (require.main === module) {
+  bootstrap().then(async (app) => {
+    const config = app.get(ConfigService<AppConfig, true>);
+    const api = config.get('api', { infer: true });
+    await app.listen(api.port, '0.0.0.0');
+    console.log(`API ready on http://localhost:${api.port}/${api.globalPrefix}`);
+    console.log(`Swagger docs on http://localhost:${api.port}/docs`);
+  });
+}
+
+// Vercel serverless handler
+export const handler = async (req: any, res: any) => {
+  if (!app) {
+    app = await bootstrap();
+  }
+  return (app as any).getHttpAdapter().getInstance()(req, res);
+};
