@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,6 +15,7 @@ import {
   paginate,
 } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { FraudService } from '../fraud/fraud.service';
 import { RedeemCodeDto } from './dto/loyalty.dto';
 
 interface RedeemContext {
@@ -25,6 +28,7 @@ export class LoyaltyService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
+    private readonly fraud: FraudService,
   ) {}
 
   /**
@@ -33,6 +37,14 @@ export class LoyaltyService {
    * CodeRedemption.codeId and the conditional status update).
    */
   async redeemCode(userId: string, dto: RedeemCodeDto, ctx: RedeemContext) {
+    // Anti-fraud: block abusive redemption velocity (also raises a FraudFlag).
+    if (await this.fraud.checkRedemptionVelocity(userId, ctx.ipAddress)) {
+      throw new HttpException(
+        'Too many redemptions in a short window. Please slow down.',
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const codeHash = this.crypto.hash(dto.code.trim().toUpperCase());
 
     const outlet = dto.outletCode
