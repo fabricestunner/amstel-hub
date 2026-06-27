@@ -1,6 +1,12 @@
 {
-  "buildCommand": "prisma generate && nest build",
-  "outputDirectory": "dist",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
   "installCommand": "pnpm install --frozen-lockfile",
-  "framework": null
+  "buildCommand": "pnpm --filter @amstel/web build",
+  "outputDirectory": "apps/web/.next",
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  }
 }
