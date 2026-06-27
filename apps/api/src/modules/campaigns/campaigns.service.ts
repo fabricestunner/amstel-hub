@@ -6,6 +6,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { CampaignStatus, Prisma } from '@prisma/client';
 import { randomBytes, randomUUID } from 'node:crypto';
+import QRCode from 'qrcode';
 
 import { CryptoService } from '../../common/crypto/crypto.service';
 import { paginate } from '../../common/dto/pagination.dto';
@@ -193,6 +194,58 @@ export class CampaignsService {
       pointsValue,
       ...(isProd ? {} : { codes: rawCodes }),
     };
+  }
+
+  async listCodes(
+    campaignId: string,
+    query: {
+      page?: number;
+      limit?: number;
+      batchId?: string;
+      status?: string;
+    },
+  ) {
+    await this.findById(campaignId);
+    const take = query.limit ?? 50;
+    const page = query.page ?? 1;
+    const skip = (page - 1) * take;
+    const where = {
+      campaignId,
+      ...(query.batchId ? { batchId: query.batchId } : {}),
+      ...(query.status ? { status: query.status as any } : {}),
+    };
+    const [items, total] = await Promise.all([
+      this.prisma.loyaltyCode.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          type: true,
+          pointsValue: true,
+          status: true,
+          batchId: true,
+          expiresAt: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.loyaltyCode.count({ where }),
+    ]);
+    return paginate(
+      items,
+      total,
+      { page, limit: take } as any,
+    );
+  }
+
+  async generateQr(campaignId: string, codeId: string): Promise<Buffer> {
+    const code = await this.prisma.loyaltyCode.findFirst({
+      where: { id: codeId, campaignId },
+    });
+    if (!code) throw new NotFoundException('Code not found');
+    const plain = this.crypto.decrypt(code.codeCipher);
+    return QRCode.toBuffer(plain, { type: 'png', width: 300, margin: 2 });
   }
 
   /** Generates `AMSTEL-XXXX-XXXX` with uppercase hex segments. */
