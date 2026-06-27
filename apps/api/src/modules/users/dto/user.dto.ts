@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole, UserStatus } from '@prisma/client';
-import { IsEnum, IsOptional, IsString, IsUrl } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUrl, MinLength } from 'class-validator';
 
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 
@@ -34,6 +34,17 @@ export class UpdateUserRoleDto {
   @ApiProperty({ enum: UserRole })
   @IsEnum(UserRole)
   role!: UserRole;
+}
+
+export class ChangePasswordDto {
+  @ApiProperty({ description: 'Current password' })
+  @IsString()
+  currentPassword!: string;
+
+  @ApiProperty({ description: 'New password (min 8 characters)', minLength: 8 })
+  @IsString()
+  @MinLength(8)
+  newPassword!: string;
 }
 
 export class ListUsersQueryDto extends PaginationQueryDto {
