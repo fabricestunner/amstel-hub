@@ -1,7 +1,11 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import { CurrentUser, Roles } from '../../common/decorators';
+import {
+  AuthenticatedUser,
+  CurrentUser,
+  Roles,
+} from '../../common/decorators';
 import { PaginationQueryDto } from '../../common/dto/pagination.dto';
 import { UsersService } from './users.service';
 
@@ -11,10 +15,17 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
-  /** Current authenticated user's profile. */
+  /** Current authenticated user's profile, enriched with auth-context scoping
+   * (outletId / regionId / permissions) the dashboards rely on. */
   @Get('me')
-  me(@CurrentUser('id') userId: string) {
-    return this.users.findById(userId);
+  async me(@CurrentUser() current: AuthenticatedUser) {
+    const profile = await this.users.findById(current.id);
+    return {
+      ...profile,
+      outletId: current.outletId,
+      regionId: current.regionId,
+      permissions: current.permissions,
+    };
   }
 
   @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
