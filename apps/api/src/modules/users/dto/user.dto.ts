@@ -27,13 +27,13 @@ export type SettableStatus = (typeof SETTABLE_STATUSES)[number];
 export class UpdateUserStatusDto {
   @ApiProperty({ enum: SETTABLE_STATUSES })
   @IsEnum(SETTABLE_STATUSES)
-  status: SettableStatus;
+  status!: SettableStatus;
 }
 
 export class UpdateUserRoleDto {
   @ApiProperty({ enum: UserRole })
   @IsEnum(UserRole)
-  role: UserRole;
+  role!: UserRole;
 }
 
 export class ListUsersQueryDto extends PaginationQueryDto {
