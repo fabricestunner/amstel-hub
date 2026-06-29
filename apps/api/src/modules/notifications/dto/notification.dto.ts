@@ -1,12 +1,9 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { NotificationChannel, NotificationStatus } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { NotificationStatus } from '@prisma/client';
 import {
-  IsArray,
   IsBoolean,
   IsEnum,
   IsOptional,
-  ValidateNested,
 } from 'class-validator';
 
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
@@ -18,20 +15,11 @@ export class ListNotificationsDto extends PaginationQueryDto {
   status?: NotificationStatus;
 }
 
-export class NotificationPreferenceItemDto {
-  @ApiProperty({ enum: NotificationChannel })
-  @IsEnum(NotificationChannel)
-  channel!: NotificationChannel;
-
-  @ApiProperty()
-  @IsBoolean()
-  enabled!: boolean;
-}
-
 export class UpdatePreferencesDto {
-  @ApiProperty({ type: [NotificationPreferenceItemDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => NotificationPreferenceItemDto)
-  preferences!: NotificationPreferenceItemDto[];
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() email?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() sms?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() push?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() promotions?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() tournaments?: boolean;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() rewards?: boolean;
 }

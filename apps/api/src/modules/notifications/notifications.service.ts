@@ -97,7 +97,14 @@ export class NotificationsService {
       }),
       this.prisma.notification.count({ where }),
     ]);
-    return paginate(items, total, query);
+    const mapped = items.map((n) => ({
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      read: n.status === 'READ',
+      createdAt: n.createdAt.toISOString(),
+    }));
+    return paginate(mapped, total, query);
   }
 
   async markRead(userId: string, id: string) {
@@ -120,22 +127,38 @@ export class NotificationsService {
   }
 
   async getPreferences(userId: string) {
-    return this.prisma.notificationPreference.findMany({
+    const rows = await this.prisma.notificationPreference.findMany({
       where: { userId },
-      orderBy: { channel: 'asc' },
     });
+    const byChannel = Object.fromEntries(rows.map((r) => [r.channel, r.enabled]));
+    return {
+      email: byChannel['EMAIL'] ?? true,
+      sms: byChannel['SMS'] ?? true,
+      push: byChannel['PUSH'] ?? true,
+      promotions: true,
+      tournaments: true,
+      rewards: true,
+    };
   }
 
   async updatePreferences(userId: string, dto: UpdatePreferencesDto) {
-    await this.prisma.$transaction(
-      dto.preferences.map((p) =>
+    const channelMap: Record<string, 'EMAIL' | 'SMS' | 'PUSH'> = {
+      email: 'EMAIL',
+      sms: 'SMS',
+      push: 'PUSH',
+    };
+    const upserts = Object.entries(dto)
+      .filter(([k]) => k in channelMap)
+      .map(([k, enabled]) =>
         this.prisma.notificationPreference.upsert({
-          where: { userId_channel: { userId, channel: p.channel } },
-          create: { userId, channel: p.channel, enabled: p.enabled },
-          update: { enabled: p.enabled },
+          where: { userId_channel: { userId, channel: channelMap[k] } },
+          create: { userId, channel: channelMap[k], enabled: !!enabled },
+          update: { enabled: !!enabled },
         }),
-      ),
-    );
+      );
+    if (upserts.length > 0) {
+      await this.prisma.$transaction(upserts);
+    }
     return this.getPreferences(userId);
   }
 }
