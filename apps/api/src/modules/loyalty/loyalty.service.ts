@@ -159,6 +159,14 @@ export class LoyaltyService {
       }),
       this.prisma.pointsTransaction.count({ where }),
     ]);
-    return paginate(items, total, query);
+    const mapped = items.map((t) => ({
+      id: t.id,
+      type: t.type.toLowerCase(),
+      description: t.description ?? t.campaign?.name ?? t.outlet?.name,
+      points: t.points,
+      balance: Number(t.balanceAfter),
+      createdAt: t.createdAt.toISOString(),
+    }));
+    return paginate(mapped, total, query);
   }
 }
