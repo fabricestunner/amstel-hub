@@ -13,7 +13,7 @@ services:
     rootDir: .
     buildCommand: pnpm install --frozen-lockfile && pnpm rebuild argon2 && pnpm --filter @amstel/api db:generate && pnpm --filter @amstel/api build
     # Apply migrations on every deploy, then boot. Render injects PORT.
-    startCommand: pnpm --filter @amstel/api exec prisma migrate deploy && node apps/api/dist/main.js
+    startCommand: pnpm --filter @amstel/api exec prisma migrate deploy && pnpm --filter @amstel/api db:seed && node apps/api/dist/main.js
     healthCheckPath: /api/v1/health
     autoDeploy: true
     envVars:
