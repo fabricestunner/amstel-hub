@@ -33,22 +33,47 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // ── Geography ───────────────────────────────────────────────
+  // ── Rwanda Geography (5 provinces · 30 districts) ──────────
+  const RWANDA: Record<string, { code: string; districts: string[] }> = {
+    'Kigali City':       { code: 'KGL', districts: ['Gasabo', 'Kicukiro', 'Nyarugenge'] },
+    'Northern Province': { code: 'NOR', districts: ['Burera', 'Gakenke', 'Gicumbi', 'Musanze', 'Rulindo'] },
+    'Southern Province': { code: 'SOU', districts: ['Gisagara', 'Huye', 'Kamonyi', 'Muhanga', 'Nyamagabe', 'Nyanza', 'Nyaruguru', 'Ruhango'] },
+    'Eastern Province':  { code: 'EAS', districts: ['Bugesera', 'Gatsibo', 'Kayonza', 'Kirehe', 'Ngoma', 'Nyagatare', 'Rwamagana'] },
+    'Western Province':  { code: 'WES', districts: ['Karongi', 'Ngororero', 'Nyabihu', 'Nyamasheke', 'Rubavu', 'Rusizi', 'Rutsiro'] },
+  };
+
+  // Single national region record (Rwanda uses provinces as primary admin units)
   const region = await prisma.region.upsert({
-    where: { code: 'CENTRAL' },
+    where: { code: 'RW' },
     update: {},
-    create: { name: 'Central Region', code: 'CENTRAL' },
+    create: { name: 'Rwanda', code: 'RW' },
   });
-  const province = await prisma.province.upsert({
-    where: { regionId_name: { regionId: region.id, name: 'Capital Province' } },
-    update: {},
-    create: { name: 'Capital Province', regionId: region.id },
-  });
-  const district = await prisma.district.upsert({
-    where: { provinceId_name: { provinceId: province.id, name: 'Downtown District' } },
-    update: {},
-    create: { name: 'Downtown District', provinceId: province.id },
-  });
+
+  // Seed provinces + districts
+  const provinceMap: Record<string, { id: string }> = {};
+  const districtMap: Record<string, { id: string }> = {};
+
+  for (const [provinceName, { districts }] of Object.entries(RWANDA)) {
+    const prov = await prisma.province.upsert({
+      where: { regionId_name: { regionId: region.id, name: provinceName } },
+      update: {},
+      create: { name: provinceName, regionId: region.id },
+    });
+    provinceMap[provinceName] = prov;
+
+    for (const districtName of districts) {
+      const dist = await prisma.district.upsert({
+        where: { provinceId_name: { provinceId: prov.id, name: districtName } },
+        update: {},
+        create: { name: districtName, provinceId: prov.id },
+      });
+      districtMap[districtName] = dist;
+    }
+  }
+
+  // Convenience aliases for seeding outlets/users below
+  const province = provinceMap['Kigali City'];
+  const district = districtMap['Gasabo'];
 
   // ── Users ───────────────────────────────────────────────────
   const password = await argon2.hash('Password123!');

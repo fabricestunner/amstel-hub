@@ -68,7 +68,7 @@ export default function AdminCampaignsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [codesFor, setCodesFor] = useState<Campaign | null>(null);
   const [count, setCount] = useState(100);
-  const [codeType, setCodeType] = useState('standard');
+  const [codeType, setCodeType] = useState('PROMO');
   const [generated, setGenerated] = useState<string[]>([]);
 
   const {
@@ -272,9 +272,10 @@ export default function AdminCampaignsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                    <SelectItem value="bonus">Bonus</SelectItem>
+                    <SelectItem value="PROMO">Promo voucher</SelectItem>
+                    <SelectItem value="QR">QR code</SelectItem>
+                    <SelectItem value="BOTTLE">Bottle cap</SelectItem>
+                    <SelectItem value="RECEIPT">Receipt</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

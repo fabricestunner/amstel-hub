@@ -35,14 +35,15 @@ import {
   useDistricts,
   useOutlets,
   useProvinces,
-  useRegions,
 } from '@/features/outlets/use-outlets';
 
 const outletSchema = z.object({
   name: z.string().min(2, 'Name is required'),
-  code: z.string().min(2, 'Code is required').regex(/^[A-Z0-9-]+$/, 'Use uppercase letters, numbers and hyphens'),
+  code: z
+    .string()
+    .min(2, 'Code is required')
+    .regex(/^[A-Z0-9-]+$/, 'Use uppercase letters, numbers and hyphens'),
   address: z.string().optional(),
-  regionId: z.string().min(1, 'Select a region'),
   provinceId: z.string().min(1, 'Select a province'),
   districtId: z.string().min(1, 'Select a district'),
 });
@@ -51,12 +52,12 @@ type OutletForm = z.infer<typeof outletSchema>;
 export default function AdminOutletsPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const [regionFilter, setRegionFilter] = useState('all');
+  const [provinceFilter, setProvinceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Outlet | null>(null);
 
-  const { data, isLoading } = useOutlets({ page, search, region: regionFilter, status: statusFilter });
+  const { data, isLoading } = useOutlets({ page, search, status: statusFilter });
   const createOutlet = useCreateOutlet();
   const deleteOutlet = useDeleteOutlet();
 
@@ -66,7 +67,8 @@ export default function AdminOutletsPage() {
   );
   const totalPages = Array.isArray(data) ? 1 : (data?.meta?.totalPages ?? 1);
 
-  const { data: regions = [] } = useRegions();
+  // All provinces for filter bar and form
+  const { data: provinces = [] } = useProvinces();
 
   const {
     register,
@@ -77,28 +79,33 @@ export default function AdminOutletsPage() {
     formState: { errors },
   } = useForm<OutletForm>({ resolver: zodResolver(outletSchema) });
 
-  const selectedRegionId = watch('regionId');
   const selectedProvinceId = watch('provinceId');
-
-  const { data: provinces = [] } = useProvinces(selectedRegionId);
   const { data: districts = [] } = useDistricts(selectedProvinceId);
 
-  useEffect(() => {
-    setValue('provinceId', '');
-    setValue('districtId', '');
-  }, [selectedRegionId, setValue]);
-
+  // Reset district when province changes
   useEffect(() => {
     setValue('districtId', '');
   }, [selectedProvinceId, setValue]);
 
   function onCreate(values: OutletForm) {
-    createOutlet.mutate(values, {
-      onSuccess: () => {
-        setCreateOpen(false);
-        reset();
+    // Derive regionId from the selected province object
+    const province = provinces.find((p) => p.id === values.provinceId);
+    createOutlet.mutate(
+      {
+        name: values.name,
+        code: values.code,
+        address: values.address,
+        regionId: province?.regionId ?? '',
+        provinceId: values.provinceId,
+        districtId: values.districtId,
       },
-    });
+      {
+        onSuccess: () => {
+          setCreateOpen(false);
+          reset();
+        },
+      },
+    );
   }
 
   function onDelete() {
@@ -108,11 +115,20 @@ export default function AdminOutletsPage() {
     });
   }
 
+  // Client-side province filter on the table
+  const filteredOutlets = useMemo(
+    () =>
+      provinceFilter === 'all'
+        ? outlets
+        : outlets.filter((o) => o.province === provinceFilter),
+    [outlets, provinceFilter],
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Outlets"
-        description="Manage registered outlets across provinces and districts."
+        description="Manage registered outlets across Rwanda's provinces and districts."
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" /> Add outlet
@@ -121,19 +137,26 @@ export default function AdminOutletsPage() {
       />
 
       <div className="flex flex-wrap gap-3">
-        <Select value={regionFilter} onValueChange={(v) => { setRegionFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="All regions" />
+        <Select
+          value={provinceFilter}
+          onValueChange={(v) => { setProvinceFilter(v); setPage(1); }}
+        >
+          <SelectTrigger className="w-52">
+            <SelectValue placeholder="All provinces" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All regions</SelectItem>
-            {regions.map((r) => (
-              <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+            <SelectItem value="all">All provinces</SelectItem>
+            {provinces.map((p) => (
+              <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-48">
+
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => { setStatusFilter(v); setPage(1); }}
+        >
+          <SelectTrigger className="w-40">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
@@ -148,7 +171,7 @@ export default function AdminOutletsPage() {
         <CardContent className="pt-6">
           <DataTable
             isLoading={isLoading}
-            rows={outlets}
+            rows={filteredOutlets}
             searchValue={search}
             onSearch={(v) => { setSearch(v); setPage(1); }}
             page={page}
@@ -161,7 +184,9 @@ export default function AdminOutletsPage() {
                 render: (r: Outlet) => (
                   <div>
                     <div className="font-medium">{r.name}</div>
-                    {r.code && <div className="text-xs text-muted-foreground">{r.code}</div>}
+                    {r.code && (
+                      <div className="text-xs text-muted-foreground">{r.code}</div>
+                    )}
                   </div>
                 ),
               },
@@ -172,8 +197,8 @@ export default function AdminOutletsPage() {
                   <div className="flex items-start gap-1.5">
                     <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <div className="text-sm leading-tight">
-                      <div>{r.district ?? '—'}</div>
-                      <div className="text-muted-foreground">{r.province ?? r.region ?? '—'}</div>
+                      <div className="font-medium">{r.district ?? '—'}</div>
+                      <div className="text-muted-foreground">{r.province ?? '—'}</div>
                     </div>
                   </div>
                 ),
@@ -192,7 +217,10 @@ export default function AdminOutletsPage() {
                 key: 'status',
                 header: 'Status',
                 render: (r: Outlet) => (
-                  <Badge variant={r.status === 'active' ? 'success' : 'secondary'} className="capitalize">
+                  <Badge
+                    variant={r.status === 'active' ? 'success' : 'secondary'}
+                    className="capitalize"
+                  >
                     {r.status ?? 'active'}
                   </Badge>
                 ),
@@ -216,92 +244,114 @@ export default function AdminOutletsPage() {
         </CardContent>
       </Card>
 
-      {/* Create outlet dialog */}
+      {/* ── Create outlet dialog ── */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-lg">
           <form onSubmit={handleSubmit(onCreate)}>
             <DialogHeader>
               <DialogTitle>Add outlet</DialogTitle>
               <DialogDescription>
-                Register a new outlet. Choose its province and district within Rwanda.
+                Register a new outlet using Rwanda's province → district format.
               </DialogDescription>
             </DialogHeader>
+
             <div className="space-y-4 py-4">
+              {/* Name + Code */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Outlet name</Label>
                   <Input id="name" placeholder="Pili Pili Bar" {...register('name')} />
-                  {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+                  {errors.name && (
+                    <p className="text-xs text-destructive">{errors.name.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="code">Code</Label>
-                  <Input id="code" placeholder="OUT-KGL-001" className="uppercase" {...register('code')} />
-                  {errors.code && <p className="text-xs text-destructive">{errors.code.message}</p>}
+                  <Input
+                    id="code"
+                    placeholder="OUT-KGL-001"
+                    className="uppercase"
+                    {...register('code')}
+                  />
+                  {errors.code && (
+                    <p className="text-xs text-destructive">{errors.code.message}</p>
+                  )}
                 </div>
               </div>
 
+              {/* Province */}
               <div className="space-y-2">
-                <Label>Region</Label>
-                <Select value={selectedRegionId} onValueChange={(v) => setValue('regionId', v, { shouldValidate: true })}>
+                <Label>Province</Label>
+                <Select
+                  value={selectedProvinceId}
+                  onValueChange={(v) => setValue('provinceId', v, { shouldValidate: true })}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select region…" />
+                    <SelectValue placeholder="Select province…" />
                   </SelectTrigger>
                   <SelectContent>
-                    {regions.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                    {provinces.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.regionId && <p className="text-xs text-destructive">{errors.regionId.message}</p>}
+                {errors.provinceId && (
+                  <p className="text-xs text-destructive">{errors.provinceId.message}</p>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Province</Label>
-                  <Select
-                    value={selectedProvinceId}
-                    onValueChange={(v) => setValue('provinceId', v, { shouldValidate: true })}
-                    disabled={!selectedRegionId || provinces.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select province…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {provinces.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.provinceId && <p className="text-xs text-destructive">{errors.provinceId.message}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>District</Label>
-                  <Select
-                    value={watch('districtId')}
-                    onValueChange={(v) => setValue('districtId', v, { shouldValidate: true })}
-                    disabled={!selectedProvinceId || districts.length === 0}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select district…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {districts.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.districtId && <p className="text-xs text-destructive">{errors.districtId.message}</p>}
-                </div>
-              </div>
-
+              {/* District */}
               <div className="space-y-2">
-                <Label htmlFor="address">Address <span className="text-muted-foreground">(optional)</span></Label>
-                <Input id="address" placeholder="KG 123 St, Kigali" {...register('address')} />
+                <Label>District</Label>
+                <Select
+                  value={watch('districtId')}
+                  onValueChange={(v) => setValue('districtId', v, { shouldValidate: true })}
+                  disabled={!selectedProvinceId || districts.length === 0}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        !selectedProvinceId
+                          ? 'Select a province first'
+                          : 'Select district…'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {districts.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.districtId && (
+                  <p className="text-xs text-destructive">{errors.districtId.message}</p>
+                )}
+              </div>
+
+              {/* Address */}
+              <div className="space-y-2">
+                <Label htmlFor="address">
+                  Address{' '}
+                  <span className="text-muted-foreground">(optional)</span>
+                </Label>
+                <Input
+                  id="address"
+                  placeholder="KG 123 St, Kigali"
+                  {...register('address')}
+                />
               </div>
             </div>
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => { setCreateOpen(false); reset(); }}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => { setCreateOpen(false); reset(); }}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={createOutlet.isPending}>
@@ -312,17 +362,20 @@ export default function AdminOutletsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete confirmation dialog */}
+      {/* ── Delete confirmation ── */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete outlet?</DialogTitle>
             <DialogDescription>
-              <strong>{deleteTarget?.name}</strong> will be soft-deleted. This cannot be undone from the UI.
+              <strong>{deleteTarget?.name}</strong> will be soft-deleted. This
+              cannot be undone from the UI.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
             <Button
               variant="destructive"
               disabled={deleteOutlet.isPending}

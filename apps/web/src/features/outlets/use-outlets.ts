@@ -31,6 +31,7 @@ export interface Outlet {
 export interface GeoItem {
   id: string;
   name: string;
+  regionId?: string;
 }
 
 export interface OutletDashboard {
@@ -80,14 +81,11 @@ export function useRegions() {
   });
 }
 
-export function useProvinces(regionId?: string) {
+/** Load all provinces (Rwanda has 5 incl. Kigali City). Each item includes regionId for form submission. */
+export function useProvinces() {
   return useQuery({
-    queryKey: ['outlets', 'provinces', regionId],
-    queryFn: () =>
-      api.get<GeoItem[]>(
-        `/outlets/provinces${regionId ? `?regionId=${regionId}` : ''}`,
-      ),
-    enabled: !!regionId,
+    queryKey: ['outlets', 'provinces'],
+    queryFn: () => api.get<GeoItem[]>('/outlets/provinces'),
     staleTime: 5 * 60_000,
   });
 }

@@ -28,7 +28,7 @@ interface GeneratedVoucher {
 export default function AdminVouchersPage() {
   const [campaignId, setCampaignId] = useState('');
   const [count, setCount] = useState(50);
-  const [type, setType] = useState('standard');
+  const [type, setType] = useState('PROMO');
   const [vouchers, setVouchers] = useState<GeneratedVoucher[]>([]);
   const [campaignName, setCampaignName] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
@@ -140,9 +140,10 @@ export default function AdminVouchersPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="standard">Standard</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                    <SelectItem value="bonus">Bonus</SelectItem>
+                    <SelectItem value="PROMO">Promo voucher</SelectItem>
+                    <SelectItem value="QR">QR code</SelectItem>
+                    <SelectItem value="BOTTLE">Bottle cap</SelectItem>
+                    <SelectItem value="RECEIPT">Receipt</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
