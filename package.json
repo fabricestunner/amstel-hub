@@ -19,6 +19,7 @@
     "db:migrate": "pnpm --filter @amstel/api db:migrate",
     "db:seed": "pnpm --filter @amstel/api db:seed",
     "db:studio": "pnpm --filter @amstel/api db:studio",
+    "test:e2e": "pnpm --filter @amstel/web test:e2e",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down"
   },
