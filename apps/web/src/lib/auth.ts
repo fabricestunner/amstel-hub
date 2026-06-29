@@ -70,11 +70,15 @@ export function roleHome(role?: UserRole): string {
   }
 }
 
-/** Fetch the current user. Relies on the api-client's transparent refresh. */
+/** Fetch the current user. Skip the round-trip entirely when no token is stored
+ *  so unauthenticated pages redirect immediately instead of waiting for a 401. */
 export function useMe() {
+  const hasToken =
+    typeof window !== 'undefined' && !!localStorage.getItem('refreshToken');
   return useQuery({
     queryKey: queryKeys.me,
     queryFn: () => api.get<AuthUser>('/users/me'),
+    enabled: hasToken,
     retry: false,
     staleTime: 60_000,
   });
@@ -96,17 +100,19 @@ export function useAuth(options?: {
 }): UseAuthResult {
   const router = useRouter();
   const { data: user, isLoading, isError } = useMe();
+  const redirectTo = options?.redirectTo;
+  const roles = options?.roles;
 
   useEffect(() => {
     if (isLoading) return;
     if (isError || !user) {
-      if (options?.redirectTo) router.replace(options.redirectTo);
+      if (redirectTo) router.replace(redirectTo);
       return;
     }
-    if (options?.roles && user.role && !options.roles.includes(user.role)) {
+    if (roles && user.role && !roles.includes(user.role)) {
       router.replace(roleHome(user.role));
     }
-  }, [isLoading, isError, user, options?.redirectTo, options?.roles, router]);
+  }, [isLoading, isError, user, redirectTo, roles, router]);
 
   return {
     user,
