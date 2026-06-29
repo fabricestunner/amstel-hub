@@ -72,11 +72,18 @@ export interface GeneratedCode {
   type?: string;
 }
 
+export interface GenerateCodesResult {
+  generated: number;
+  batchId: string;
+  pointsValue: number;
+  codes: string[];
+}
+
 export function useGenerateCodes() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (vars: { id: string; count: number; type: string }) =>
-      api.post<GeneratedCode[] | { codes: GeneratedCode[] }>(
+      api.post<GenerateCodesResult>(
         `/campaigns/${vars.id}/codes/generate`,
         { count: vars.count, type: vars.type },
       ),

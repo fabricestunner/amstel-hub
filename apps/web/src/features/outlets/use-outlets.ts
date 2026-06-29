@@ -1,6 +1,12 @@
 'use client';
 
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 import { api } from '@/lib/api-client';
 import type { Paginated } from '@/features/users/use-users';
@@ -9,13 +15,22 @@ import { queryKeys } from '@/lib/query-keys';
 export interface Outlet {
   id: string;
   name: string;
+  code?: string;
   region?: string;
+  province?: string;
+  district?: string;
   city?: string;
+  address?: string;
   status?: 'active' | 'inactive' | string;
   pointsGenerated?: number;
   customers?: number;
   nationalRank?: number;
   regionalRank?: number;
+}
+
+export interface GeoItem {
+  id: string;
+  name: string;
 }
 
 export interface OutletDashboard {
@@ -54,6 +69,72 @@ export function useOutlets(params: {
       return api.get<Outlet[] | Paginated<Outlet>>(`/outlets?${qs.toString()}`);
     },
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useRegions() {
+  return useQuery({
+    queryKey: ['outlets', 'regions'],
+    queryFn: () => api.get<GeoItem[]>('/outlets/regions'),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useProvinces(regionId?: string) {
+  return useQuery({
+    queryKey: ['outlets', 'provinces', regionId],
+    queryFn: () =>
+      api.get<GeoItem[]>(
+        `/outlets/provinces${regionId ? `?regionId=${regionId}` : ''}`,
+      ),
+    enabled: !!regionId,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useDistricts(provinceId?: string) {
+  return useQuery({
+    queryKey: ['outlets', 'districts', provinceId],
+    queryFn: () =>
+      api.get<GeoItem[]>(
+        `/outlets/districts${provinceId ? `?provinceId=${provinceId}` : ''}`,
+      ),
+    enabled: !!provinceId,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export interface CreateOutletInput {
+  name: string;
+  code: string;
+  address?: string;
+  regionId: string;
+  provinceId: string;
+  districtId: string;
+}
+
+export function useCreateOutlet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateOutletInput) =>
+      api.post<Outlet>('/outlets', input),
+    onSuccess: () => {
+      toast.success('Outlet created');
+      qc.invalidateQueries({ queryKey: ['outlets'] });
+    },
+    onError: (err: Error) => toast.error(err.message || 'Could not create outlet'),
+  });
+}
+
+export function useDeleteOutlet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/outlets/${id}`),
+    onSuccess: () => {
+      toast.success('Outlet deleted');
+      qc.invalidateQueries({ queryKey: ['outlets'] });
+    },
+    onError: (err: Error) => toast.error(err.message || 'Could not delete outlet'),
   });
 }
 

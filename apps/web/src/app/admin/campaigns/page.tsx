@@ -30,7 +30,6 @@ import {
 } from '@/components/ui/select';
 import {
   Campaign,
-  GeneratedCode,
   useCampaigns,
   useCreateCampaign,
   useGenerateCodes,
@@ -70,7 +69,7 @@ export default function AdminCampaignsPage() {
   const [codesFor, setCodesFor] = useState<Campaign | null>(null);
   const [count, setCount] = useState(100);
   const [codeType, setCodeType] = useState('standard');
-  const [generated, setGenerated] = useState<GeneratedCode[]>([]);
+  const [generated, setGenerated] = useState<string[]>([]);
 
   const {
     register,
@@ -94,8 +93,7 @@ export default function AdminCampaignsPage() {
       { id: codesFor.id, count, type: codeType },
       {
         onSuccess: (res) => {
-          const codes = Array.isArray(res) ? res : (res.codes ?? []);
-          setGenerated(codes);
+          setGenerated(res.codes ?? []);
         },
       },
     );
@@ -288,7 +286,7 @@ export default function AdminCampaignsPage() {
                 </p>
                 <div className="grid grid-cols-2 gap-1 font-mono text-xs">
                   {generated.map((c, i) => (
-                    <span key={i}>{c.code}</span>
+                    <span key={i}>{c}</span>
                   ))}
                 </div>
               </div>

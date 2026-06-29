@@ -202,12 +202,11 @@ export class CampaignsService {
       generated += res.count;
     }
 
-    const isProd = this.config.get<string>('env') === 'production';
     return {
       generated,
       batchId,
       pointsValue,
-      ...(isProd ? {} : { codes: rawCodes }),
+      codes: rawCodes,
     };
   }
 

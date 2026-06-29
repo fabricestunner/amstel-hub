@@ -8,6 +8,7 @@ import {
   Medal,
   Megaphone,
   Settings,
+  Ticket,
   Trophy,
   Users,
 } from 'lucide-react';
@@ -22,6 +23,7 @@ const nav = [
   { href: '/admin/rewards', label: 'Rewards', icon: Gift },
   { href: '/admin/tournaments', label: 'Tournaments', icon: Trophy },
   { href: '/admin/outlets', label: 'Outlets', icon: Building2 },
+  { href: '/admin/vouchers', label: 'Vouchers', icon: Ticket },
   { href: '/admin/customers', label: 'Customers', icon: Users },
   { href: '/admin/leaderboards', label: 'Leaderboards', icon: Medal },
   { href: '/admin/reports', label: 'Reports', icon: FileText },
