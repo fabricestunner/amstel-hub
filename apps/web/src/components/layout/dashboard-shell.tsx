@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import * as React from 'react';
 
 import { Sidebar, type NavItem } from '@/components/layout/sidebar';
@@ -17,7 +16,6 @@ export interface DashboardShellProps {
   children: React.ReactNode;
 }
 
-/** Wrapper used by every dashboard page: Sidebar + Topbar + responsive main. */
 export function DashboardShell({
   nav,
   role,
@@ -36,10 +34,7 @@ export function DashboardShell({
           user={user}
           notificationCount={notificationCount}
         />
-        <motion.main
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
+        <main
           className={cn(
             'flex-1 p-4 md:p-6 lg:p-8',
             'mx-auto w-full max-w-7xl',
@@ -47,7 +42,7 @@ export function DashboardShell({
           )}
         >
           {children}
-        </motion.main>
+        </main>
       </div>
     </div>
   );
