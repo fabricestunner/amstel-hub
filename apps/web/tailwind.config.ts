@@ -10,6 +10,12 @@ const config: Config = {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
       },
       colors: {
+        amstel: {
+          red: '#C8102E',
+          'red-dark': '#a00d24',
+          gold: '#D4A017',
+          'gold-light': '#e8b620',
+        },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
@@ -58,10 +64,30 @@ const config: Config = {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% 0' },
+          '100%': { backgroundPosition: '200% 0' },
+        },
+        'fade-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        'slide-up': {
+          from: { opacity: '0', transform: 'translateY(8px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'glow-pulse': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(200, 16, 46, 0.4)' },
+          '50%': { boxShadow: '0 0 0 8px rgba(200, 16, 46, 0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        shimmer: 'shimmer 2s linear infinite',
+        'fade-in': 'fade-in 0.3s ease-out',
+        'slide-up': 'slide-up 0.3s ease-out',
+        'glow-pulse': 'glow-pulse 2s ease-in-out infinite',
       },
     },
   },

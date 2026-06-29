@@ -79,6 +79,19 @@
 }
 
 @layer utilities {
+  /* Premium shadow & glow helpers */
+  .shadow-premium {
+    box-shadow:
+      0 20px 40px rgba(200, 16, 46, 0.15),
+      0 8px 16px rgba(0, 0, 0, 0.08);
+  }
+  .shadow-gold {
+    box-shadow: 0 0 24px rgba(212, 160, 23, 0.35);
+  }
+  .glow-red {
+    box-shadow: 0 0 20px rgba(200, 16, 46, 0.4);
+  }
+
   /* Brand gradient helpers */
   .bg-amstel-gradient {
     background-image: linear-gradient(

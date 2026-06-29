@@ -79,10 +79,10 @@ export default function CustomerDashboard() {
         <div className="lg:col-span-2 space-y-4">
           {/* Success banner */}
           {lastResult && (
-            <div className="relative flex items-start gap-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5">
-              <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-emerald-500" />
+            <div className="relative flex items-start gap-4 rounded-xl border border-green-500/30 bg-green-50 p-5 dark:bg-green-900/20">
+              <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-600 dark:text-green-400" />
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-emerald-700 dark:text-emerald-400">
+                <p className="font-semibold text-green-700 dark:text-green-400">
                   Code redeemed successfully!
                 </p>
                 <p className="mt-0.5 text-sm text-muted-foreground">
@@ -107,7 +107,7 @@ export default function CustomerDashboard() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-[#D4A017]" />
+                <Sparkles className="h-5 w-5 text-amstel-gold" />
                 Redeem a code
               </CardTitle>
               <CardDescription>
@@ -128,7 +128,7 @@ export default function CustomerDashboard() {
                 <Button
                   type="submit"
                   disabled={!code || redeem.isPending}
-                  className="shrink-0 bg-[#C8102E] hover:bg-[#a00d24] text-white"
+                  className="shrink-0 bg-amstel-red text-white hover:bg-amstel-red-dark"
                 >
                   {redeem.isPending ? 'Redeeming…' : 'Redeem'}
                 </Button>
@@ -155,17 +155,17 @@ export default function CustomerDashboard() {
         </div>
 
         {/* Rank card */}
-        <Card className="border-[#D4A017]/40 bg-[#D4A017]/5">
+        <Card className="border-amstel-gold/40 bg-amstel-gold/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-[#D4A017]" />
+              <Trophy className="h-5 w-5 text-amstel-gold" />
               Your rank
             </CardTitle>
             <CardDescription>Current leaderboard standing</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold text-[#D4A017]">
+              <span className="text-4xl font-extrabold text-amstel-gold">
                 {me?.rank ? `#${me.rank}` : '—'}
               </span>
               {me?.region && <Badge variant="gold">{me.region}</Badge>}
@@ -207,7 +207,7 @@ export default function CustomerDashboard() {
                 key: 'points',
                 header: 'Points',
                 render: (r) => (
-                  <span className={r.points < 0 ? 'text-destructive' : 'text-emerald-600 font-medium'}>
+                  <span className={r.points < 0 ? 'text-destructive' : 'text-green-600 font-medium dark:text-green-400'}>
                     {r.points > 0 ? '+' : ''}
                     {r.points.toLocaleString()}
                   </span>

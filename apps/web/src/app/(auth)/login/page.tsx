@@ -1,13 +1,13 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { AlertCircle, Loader2, Lock, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
@@ -34,64 +34,88 @@ export default function LoginPage() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Sign in</CardTitle>
+    <>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-bold tracking-tight">Sign in</CardTitle>
         <CardDescription>
           Welcome back. Enter your details to access your dashboard.
         </CardDescription>
       </CardHeader>
+
       <form onSubmit={handleSubmit((v) => login.mutate(v))}>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pb-4">
           <div className="space-y-2">
             <Label htmlFor="identifier">Email or phone</Label>
-            <Input
-              id="identifier"
-              placeholder="you@example.com"
-              autoComplete="username"
-              {...register('identifier')}
-            />
+            <div className="relative">
+              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="identifier"
+                placeholder="you@example.com"
+                autoComplete="username"
+                className="pl-9 focus-visible:ring-amstel-red/40"
+                {...register('identifier')}
+              />
+            </div>
             {errors.identifier && (
-              <p className="text-sm text-destructive">
+              <p className="flex items-center gap-1.5 text-sm text-destructive">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 {errors.identifier.message}
               </p>
             )}
           </div>
+
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
               <Link
                 href="/forgot-password"
-                className="text-xs text-muted-foreground hover:text-primary"
+                className="text-xs font-medium text-amstel-gold hover:underline"
               >
                 Forgot password?
               </Link>
             </div>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              {...register('password')}
-            />
+            <div className="relative">
+              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                className="pl-9 focus-visible:ring-amstel-red/40"
+                {...register('password')}
+              />
+            </div>
             {errors.password && (
-              <p className="text-sm text-destructive">
+              <p className="flex items-center gap-1.5 text-sm text-destructive">
+                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                 {errors.password.message}
               </p>
             )}
           </div>
         </CardContent>
-        <CardFooter className="flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={login.isPending}>
-            {login.isPending ? 'Signing in…' : 'Sign in'}
+
+        <CardFooter className="flex-col gap-4 pt-2 pb-6">
+          <Button
+            type="submit"
+            className="w-full bg-amstel-red text-white hover:bg-amstel-red-dark"
+            disabled={login.isPending}
+          >
+            {login.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Signing in…
+              </>
+            ) : (
+              'Sign in'
+            )}
           </Button>
           <p className="text-center text-sm text-muted-foreground">
             New here?{' '}
-            <Link href="/register" className="font-medium text-primary">
+            <Link href="/register" className="font-semibold text-amstel-red hover:underline">
               Create an account
             </Link>
           </p>
         </CardFooter>
       </form>
-    </Card>
+    </>
   );
 }

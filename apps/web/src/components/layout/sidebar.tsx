@@ -50,7 +50,7 @@ export function Sidebar({ items, role, className }: SidebarProps) {
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
         {items.map((item) => {
           const active =
             pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -62,13 +62,16 @@ export function Sidebar({ items, role, className }: SidebarProps) {
               title={collapsed ? item.label : undefined}
               aria-current={active ? 'page' : undefined}
               className={cn(
-                'group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                'group relative flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-150',
                 collapsed && 'justify-center px-0',
                 active
-                  ? 'bg-primary text-primary-foreground'
+                  ? 'bg-amstel-red/10 text-amstel-red font-semibold'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground',
               )}
             >
+              {active && !collapsed && (
+                <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-amstel-red" />
+              )}
               <Icon className="h-5 w-5 shrink-0" />
               {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>

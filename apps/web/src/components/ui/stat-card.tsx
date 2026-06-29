@@ -29,11 +29,11 @@ export function StatCard({
 
   return (
     <div>
-      <Card className="relative overflow-hidden p-5">
+      <Card className="relative overflow-hidden p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
         <div
           className={cn(
-            'pointer-events-none absolute inset-x-0 top-0 h-1',
-            isRed ? 'bg-primary' : 'bg-accent',
+            'pointer-events-none absolute inset-x-0 top-0 h-1.5',
+            isRed ? 'bg-amstel-red' : 'bg-amstel-gold',
           )}
         />
         <div className="flex items-start justify-between gap-4">
@@ -48,8 +48,8 @@ export function StatCard({
               className={cn(
                 'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg [&_svg]:h-5 [&_svg]:w-5',
                 isRed
-                  ? 'bg-primary/10 text-primary'
-                  : 'bg-accent/15 text-accent-foreground',
+                  ? 'bg-amstel-red/10 text-amstel-red'
+                  : 'bg-amstel-gold/15 text-amstel-gold',
               )}
             >
               {icon}
@@ -62,7 +62,7 @@ export function StatCard({
             <span
               className={cn(
                 'inline-flex items-center gap-0.5 font-semibold',
-                positive ? 'text-emerald-600' : 'text-destructive',
+                positive ? 'text-green-600 dark:text-green-400' : 'text-destructive',
               )}
             >
               {positive ? (

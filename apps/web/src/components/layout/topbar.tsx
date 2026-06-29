@@ -82,7 +82,7 @@ export function Topbar({
               {user?.avatarUrl && (
                 <AvatarImage src={user.avatarUrl} alt={displayName} />
               )}
-              <AvatarFallback className="bg-primary/10 text-primary">
+              <AvatarFallback className="bg-gradient-to-br from-amstel-red to-amstel-red-dark text-white">
                 {initials(displayName)}
               </AvatarFallback>
             </Avatar>
