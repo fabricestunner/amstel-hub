@@ -79,14 +79,18 @@ export class UsersService {
     const [items, total] = await Promise.all([
       this.prisma.user.findMany({
         where,
-        select: PUBLIC_USER_FIELDS,
+        select: { ...PUBLIC_USER_FIELDS, wallet: { select: { availablePoints: true } } },
         skip: query.skip,
         take: query.limit,
         orderBy: { createdAt: query.sortOrder },
       }),
       this.prisma.user.count({ where }),
     ]);
-    return paginate(items, total, query);
+    const mapped = items.map(({ wallet, ...u }) => ({
+      ...u,
+      points: wallet ? Number(wallet.availablePoints) : 0,
+    }));
+    return paginate(mapped, total, query);
   }
 
   async updateProfile(id: string, dto: UpdateProfileDto) {

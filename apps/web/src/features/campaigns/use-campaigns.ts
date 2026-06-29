@@ -58,7 +58,7 @@ export function useUpdateCampaignStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      api.patch<Campaign>(`/campaigns/${id}/status`, { status }),
+      api.patch<Campaign>(`/campaigns/${id}/status`, { status: status.toUpperCase() }),
     onSuccess: () => {
       toast.success('Campaign updated');
       qc.invalidateQueries({ queryKey: ['campaigns'] });

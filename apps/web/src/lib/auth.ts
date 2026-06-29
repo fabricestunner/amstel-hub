@@ -73,12 +73,9 @@ export function roleHome(role?: UserRole): string {
 /** Fetch the current user. Skip the round-trip entirely when no token is stored
  *  so unauthenticated pages redirect immediately instead of waiting for a 401. */
 export function useMe() {
-  const hasToken =
-    typeof window !== 'undefined' && !!localStorage.getItem('refreshToken');
   return useQuery({
     queryKey: queryKeys.me,
     queryFn: () => api.get<AuthUser>('/users/me'),
-    enabled: hasToken,
     retry: false,
     staleTime: 60_000,
   });

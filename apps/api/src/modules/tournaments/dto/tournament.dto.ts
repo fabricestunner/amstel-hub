@@ -14,11 +14,12 @@ import {
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 
 export class CreateTournamentDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsUUID()
-  campaignId!: string;
+  campaignId?: string;
 
-  @ApiProperty({ example: 'Lagos Regional Finals' })
+  @ApiProperty({ example: 'Kigali Regional Finals' })
   @IsString()
   @Length(2, 120)
   name!: string;
@@ -28,34 +29,68 @@ export class CreateTournamentDto {
   @IsString()
   description?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  @Length(2, 120)
-  venue!: string;
+  venue?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  @Length(2, 80)
-  city!: string;
+  city?: string;
 
-  @ApiProperty({ example: 16 })
+  /** Frontend sends maxParticipants; maxPlayers is the canonical DB name. */
+  @ApiPropertyOptional({ example: 16 })
+  @IsOptional()
   @IsInt()
   @Min(2)
-  maxPlayers!: number;
+  maxParticipants?: number;
 
+  @ApiPropertyOptional({ example: 16, deprecated: true })
+  @IsOptional()
+  @IsInt()
+  @Min(2)
+  maxPlayers?: number;
+
+  /** Frontend sends entryPoints; entryPointsCost is the canonical DB name. */
   @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  entryPoints?: number;
+
+  @ApiPropertyOptional({ default: 0, deprecated: true })
   @IsOptional()
   @IsInt()
   @Min(0)
   entryPointsCost?: number;
 
-  @ApiProperty()
-  @IsDateString()
-  registrationDeadline!: string;
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  prizePool?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsDateString()
-  startsAt!: string;
+  registrationDeadline?: string;
+
+  /** Frontend sends startDate */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  startsAt?: string;
+
+  /** Frontend sends endDate */
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  endDate?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -84,17 +119,32 @@ export class ListTournamentsDto extends PaginationQueryDto {
 }
 
 export class MatchResultDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsUUID()
-  winnerId!: string;
+  winnerId?: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsInt()
   @Min(0)
-  scoreOne!: number;
+  scoreA?: number;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsInt()
   @Min(0)
-  scoreTwo!: number;
+  scoreB?: number;
+
+  @ApiPropertyOptional({ deprecated: true })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  scoreOne?: number;
+
+  @ApiPropertyOptional({ deprecated: true })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  scoreTwo?: number;
 }

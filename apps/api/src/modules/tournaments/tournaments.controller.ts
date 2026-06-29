@@ -33,10 +33,12 @@ export class TournamentsController {
     return this.tournaments.listOpen();
   }
 
-  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
   @Get()
-  list(@Query() query: ListTournamentsDto) {
-    return this.tournaments.list(query);
+  list(
+    @Query() query: ListTournamentsDto,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.tournaments.list(query, userId);
   }
 
   @Get(':id')
@@ -77,7 +79,7 @@ export class TournamentsController {
   }
 
   @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
-  @Post(':id/bracket/generate')
+  @Post(':id/bracket')
   generateBracket(@Param('id') id: string) {
     return this.tournaments.generateBracket(id);
   }

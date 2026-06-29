@@ -37,7 +37,7 @@ const STATUS_TRANSITIONS: Record<TournamentStatus, TournamentStatus[]> = {
 export class TournamentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async list(query: ListTournamentsDto) {
+  async list(query: ListTournamentsDto, userId?: string) {
     const where: Prisma.TournamentWhereInput = {
       deletedAt: null,
       ...(query.status ? { status: query.status } : {}),
@@ -46,16 +46,37 @@ export class TournamentsService {
         ? { name: { contains: query.search, mode: 'insensitive' } }
         : {}),
     };
-    const [items, total] = await Promise.all([
+    const [items, total, myRegs] = await Promise.all([
       this.prisma.tournament.findMany({
         where,
         skip: query.skip,
         take: query.limit,
         orderBy: { startsAt: query.sortOrder },
+        include: { _count: { select: { registrations: true } } },
       }),
       this.prisma.tournament.count({ where }),
+      userId
+        ? this.prisma.tournamentRegistration.findMany({
+            where: { userId },
+            select: { tournamentId: true },
+          })
+        : [],
     ]);
-    return paginate(items, total, query);
+    const registeredIds = new Set(myRegs.map((r) => r.tournamentId));
+    const mapped = items.map((t) => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      status: t.status.toLowerCase().replace('registration_open', 'open').replace('registration_closed', 'registration_closed').replace('in_progress', 'in_progress'),
+      entryPoints: t.entryPointsCost,
+      prizePool: null,
+      startDate: t.startsAt.toISOString(),
+      endDate: t.endsAt?.toISOString() ?? null,
+      maxParticipants: t.maxPlayers,
+      participantCount: t._count.registrations,
+      registered: registeredIds.has(t.id),
+    }));
+    return paginate(mapped, total, query);
   }
 
   /** Public: tournaments currently open for registration. */
@@ -77,16 +98,20 @@ export class TournamentsService {
   async create(dto: CreateTournamentDto) {
     return this.prisma.tournament.create({
       data: {
-        campaignId: dto.campaignId,
+        campaignId: dto.campaignId ?? (await this.getDefaultCampaignId()),
         name: dto.name,
         description: dto.description,
-        venue: dto.venue,
-        city: dto.city,
-        maxPlayers: dto.maxPlayers,
-        entryPointsCost: dto.entryPointsCost ?? 0,
-        registrationDeadline: new Date(dto.registrationDeadline),
-        startsAt: new Date(dto.startsAt),
-        endsAt: dto.endsAt ? new Date(dto.endsAt) : undefined,
+        venue: dto.venue ?? 'TBD',
+        city: dto.city ?? 'TBD',
+        maxPlayers: dto.maxParticipants ?? dto.maxPlayers ?? 64,
+        entryPointsCost: dto.entryPoints ?? dto.entryPointsCost ?? 0,
+        registrationDeadline: dto.registrationDeadline
+          ? new Date(dto.registrationDeadline)
+          : new Date(dto.startDate ?? dto.startsAt ?? Date.now()),
+        startsAt: new Date(dto.startDate ?? dto.startsAt ?? Date.now()),
+        endsAt: (dto.endDate ?? dto.endsAt)
+          ? new Date((dto.endDate ?? dto.endsAt)!)
+          : undefined,
       },
     });
   }
@@ -321,9 +346,17 @@ export class TournamentsService {
       if (match.status === 'COMPLETED') {
         throw new ConflictException('Match already completed');
       }
+      const scoreA = dto.scoreA ?? dto.scoreOne ?? 0;
+      const scoreB = dto.scoreB ?? dto.scoreTwo ?? 0;
+      const winner =
+        dto.winnerId ??
+        (scoreA > scoreB ? match.playerOneId : match.playerTwoId) ??
+        undefined;
+
       if (
-        dto.winnerId !== match.playerOneId &&
-        dto.winnerId !== match.playerTwoId
+        winner &&
+        winner !== match.playerOneId &&
+        winner !== match.playerTwoId
       ) {
         throw new BadRequestException('Winner must be one of the match players');
       }
@@ -331,20 +364,20 @@ export class TournamentsService {
       await tx.tournamentMatch.update({
         where: { id: matchId },
         data: {
-          winnerId: dto.winnerId,
-          scoreOne: dto.scoreOne,
-          scoreTwo: dto.scoreTwo,
+          winnerId: winner,
+          scoreOne: scoreA,
+          scoreTwo: scoreB,
           status: 'COMPLETED',
         },
       });
 
       const loserId =
-        dto.winnerId === match.playerOneId
+        winner === match.playerOneId
           ? match.playerTwoId
           : match.playerOneId;
 
-      if (match.nextMatchId) {
-        await this.advanceWinnerTx(tx, matchId, dto.winnerId, 'COMPLETED');
+      if (match.nextMatchId && winner) {
+        await this.advanceWinnerTx(tx, matchId, winner, 'COMPLETED');
         if (loserId) {
           await tx.tournamentRegistration.updateMany({
             where: { tournamentId, userId: loserId },
@@ -383,11 +416,46 @@ export class TournamentsService {
       where: { tournamentId },
       orderBy: [{ roundIndex: 'asc' }, { matchNumber: 'asc' }],
     });
-    const stages: Record<string, typeof matches> = {};
-    for (const match of matches) {
-      (stages[match.stage] ??= []).push(match);
-    }
-    return { tournamentId, stages };
+    // Batch-fetch player names for all matches
+    const playerIds = [
+      ...new Set(
+        matches.flatMap((m) =>
+          [m.playerOneId, m.playerTwoId, m.winnerId].filter(Boolean) as string[],
+        ),
+      ),
+    ];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: playerIds } },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    const nameOf = (id: string | null | undefined) => {
+      if (!id) return undefined;
+      const u = users.find((u) => u.id === id);
+      return u ? [u.firstName, u.lastName].filter(Boolean).join(' ') || id : id;
+    };
+    const mapped = matches.map((m) => ({
+      id: m.id,
+      stage: m.stage,
+      round: m.roundIndex,
+      matchNumber: m.matchNumber,
+      playerA: nameOf(m.playerOneId),
+      playerB: nameOf(m.playerTwoId),
+      scoreA: m.scoreOne,
+      scoreB: m.scoreTwo,
+      winner: nameOf(m.winnerId),
+      status: m.status.toLowerCase(),
+    }));
+    return { tournamentId, matches: mapped };
+  }
+
+  private async getDefaultCampaignId(): Promise<string> {
+    const campaign = await this.prisma.campaign.findFirst({
+      where: { deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true },
+    });
+    if (!campaign) throw new BadRequestException('No campaign found — create a campaign first');
+    return campaign.id;
   }
 
   /** Smallest power of two >= count, capped at the supported max of 32. */

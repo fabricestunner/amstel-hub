@@ -53,10 +53,25 @@ export class CampaignsService {
         skip: query.skip,
         take: query.limit,
         orderBy: { createdAt: query.sortOrder },
+        include: {
+          _count: { select: { codes: true } },
+          codes: { select: { redemption: { select: { id: true } } } },
+        },
       }),
       this.prisma.campaign.count({ where }),
     ]);
-    return paginate(items, total, query);
+    const mapped = items.map((c) => ({
+      id: c.id,
+      name: c.name,
+      description: c.description,
+      status: c.status.toLowerCase(),
+      pointsPerCode: c.pointsPerCode,
+      startDate: c.startsAt.toISOString(),
+      endDate: c.endsAt?.toISOString() ?? null,
+      codesGenerated: c._count.codes,
+      codesRedeemed: c.codes.filter((lc) => lc.redemption !== null).length,
+    }));
+    return paginate(mapped, total, query);
   }
 
   /** Public listing of currently ACTIVE campaigns for customers. */
