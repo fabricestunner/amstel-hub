@@ -222,6 +222,7 @@ model User {
   loginAudits     LoginAudit[]
   fraudFlags      FraudFlag[]              @relation("FlaggedUser")
   auditLogs       AuditLog[]              @relation("ActorAuditLogs")
+  leaderboardRows LeaderboardEntry[]
   customersAtOutlet Outlet?               @relation("OutletCustomers", fields: [registeredOutletId], references: [id])
   registeredOutletId String?              @db.Uuid
 
@@ -691,6 +692,7 @@ model LeaderboardEntry {
 
   // exactly one subject is set depending on type
   userId   String? @db.Uuid
+  user     User?   @relation(fields: [userId], references: [id])
   outletId String? @db.Uuid
   outlet   Outlet? @relation(fields: [outletId], references: [id])
 

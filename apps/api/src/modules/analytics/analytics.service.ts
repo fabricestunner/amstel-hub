@@ -80,13 +80,14 @@ export class AnalyticsService {
       this.dailyPoints('REDEEM', since, regionId),
     ]);
 
+    const toTrend = (b: DailyBucket) => ({ name: b.day, value: b.count });
+
     return {
-      days,
-      registrations,
-      pointsEarned,
+      registrations: registrations.map(toTrend),
+      pointsIssued: pointsEarned.map(toTrend),
       pointsRedeemed: pointsRedeemed.map((b) => ({
-        day: b.day,
-        count: Math.abs(b.count),
+        name: b.day,
+        value: Math.abs(b.count),
       })),
     };
   }
@@ -166,11 +167,10 @@ export class AnalyticsService {
     });
     return regions
       .map((r) => ({
-        id: r.id,
         name: r.name,
-        totalPoints: r.outlets.reduce((sum, o) => sum + Number(o.totalPoints), 0),
+        value: r.outlets.reduce((sum, o) => sum + Number(o.totalPoints), 0),
       }))
-      .sort((a, b) => b.totalPoints - a.totalPoints)
+      .sort((a, b) => b.value - a.value)
       .slice(0, 10);
   }
 
@@ -179,13 +179,18 @@ export class AnalyticsService {
       where: { deletedAt: null, ...(regionId ? { regionId } : {}) },
       orderBy: { totalPoints: 'desc' },
       take: 10,
-      select: { id: true, name: true, totalPoints: true, customerCount: true },
+      select: {
+        id: true,
+        name: true,
+        totalPoints: true,
+        region: { select: { name: true } },
+      },
     });
     return outlets.map((o) => ({
       id: o.id,
       name: o.name,
-      totalPoints: Number(o.totalPoints),
-      customerCount: o.customerCount,
+      region: o.region?.name,
+      points: Number(o.totalPoints),
     }));
   }
 
@@ -200,9 +205,9 @@ export class AnalyticsService {
       },
     });
     return wallets.map((w) => ({
-      userId: w.userId,
+      id: w.userId,
       name: [w.user.firstName, w.user.lastName].filter(Boolean).join(' '),
-      lifetimePoints: Number(w.lifetimePoints),
+      points: Number(w.lifetimePoints),
     }));
   }
 

@@ -47,16 +47,20 @@ export class LeaderboardsService {
       orderBy: { rank: 'asc' },
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
-      include: { outlet: { select: { id: true, name: true } } },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+        outlet: { select: { id: true, name: true, region: { select: { name: true } } } },
+      },
     });
     const result = rows.map((r) => ({
       rank: r.rank,
-      score: Number(r.score),
-      userId: r.userId,
-      outletId: r.outletId,
-      outlet: r.outlet,
-      regionId: r.regionId,
-      campaignId: r.campaignId,
+      id: r.userId ?? r.outletId ?? r.id,
+      name: r.user
+        ? [r.user.firstName, r.user.lastName].filter(Boolean).join(' ') || r.user.id
+        : (r.outlet?.name ?? '—'),
+      points: Number(r.score),
+      region: r.outlet?.region?.name,
+      avatarUrl: r.user?.avatarUrl ?? undefined,
     }));
     await this.redis.set(cacheKey, result, 60);
     return result;

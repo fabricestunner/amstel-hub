@@ -20,7 +20,7 @@ import {
 
 export default function AdminOverviewPage() {
   const { data: overview, isLoading } = useAnalyticsOverview();
-  const { data: trends } = useAnalyticsTrends('30d');
+  const { data: trends } = useAnalyticsTrends(30);
 
   const stat = (v?: number) => (isLoading ? '—' : (v ?? 0).toLocaleString());
 

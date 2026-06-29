@@ -23,22 +23,24 @@ function selectEntries(
 }
 
 export function useCustomerLeaderboard(period: 'monthly' | 'lifetime' = 'monthly') {
+  const type = period === 'lifetime' ? 'CUSTOMER_LIFETIME' : 'CUSTOMER_MONTHLY';
   return useQuery({
     queryKey: queryKeys.leaderboardCustomers(period),
     queryFn: () =>
       api.get<LeaderboardEntry[] | Paginated<LeaderboardEntry>>(
-        `/leaderboards/customers?period=${period}`,
+        `/leaderboards/customers?type=${type}`,
       ),
     select: selectEntries,
   });
 }
 
 export function useOutletLeaderboard(period: 'monthly' | 'lifetime' = 'monthly') {
+  const type = period === 'lifetime' ? 'OUTLET_NATIONAL' : 'OUTLET_NATIONAL';
   return useQuery({
     queryKey: queryKeys.leaderboardOutlets(period),
     queryFn: () =>
       api.get<LeaderboardEntry[] | Paginated<LeaderboardEntry>>(
-        `/leaderboards/outlets?period=${period}`,
+        `/leaderboards/outlets?type=${type}`,
       ),
     select: selectEntries,
   });

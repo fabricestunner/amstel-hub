@@ -38,10 +38,10 @@ export function useAnalyticsOverview() {
   });
 }
 
-export function useAnalyticsTrends(range = '30d') {
+export function useAnalyticsTrends(days = 30) {
   return useQuery({
-    queryKey: queryKeys.analyticsTrends(range),
-    queryFn: () => api.get<AnalyticsTrends>(`/analytics/trends?range=${range}`),
+    queryKey: queryKeys.analyticsTrends(String(days)),
+    queryFn: () => api.get<AnalyticsTrends>(`/analytics/trends?days=${days}`),
   });
 }
 

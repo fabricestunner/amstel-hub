@@ -130,24 +130,40 @@ export class OutletsService {
     if (!outlet) throw new NotFoundException('Outlet not found');
     this.assertReadScope(outlet.id, outlet.regionId, user);
 
-    const [codeRedemptions, tournamentEntries] = await Promise.all([
+    const [codeRedemptions, tournamentEntries, recentCustomers] = await Promise.all([
       this.prisma.codeRedemption.count({ where: { outletId: id } }),
-      // Tournament entries by customers registered through this outlet.
       this.prisma.tournamentRegistration.count({
         where: { user: { registeredOutletId: id } },
+      }),
+      this.prisma.user.findMany({
+        where: { registeredOutletId: id, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          createdAt: true,
+          wallet: { select: { availablePoints: true } },
+        },
       }),
     ]);
 
     return {
-      id: outlet.id,
+      outletId: outlet.id,
       name: outlet.name,
-      customerCount: outlet.customerCount,
-      totalPoints: Number(outlet.totalPoints),
-      totalSales: Number(outlet.totalSales),
       nationalRank: outlet.nationalRank,
       regionalRank: outlet.regionalRank,
-      codeRedemptions,
+      campaignSales: Number(outlet.totalSales),
+      pointsGenerated: Number(outlet.totalPoints),
+      customersRegistered: outlet.customerCount,
       tournamentEntries,
+      recentCustomers: recentCustomers.map((c) => ({
+        id: c.id,
+        name: [c.firstName, c.lastName].filter(Boolean).join(' ') || c.id,
+        points: c.wallet ? Number(c.wallet.availablePoints) : 0,
+        joinedAt: c.createdAt.toISOString(),
+      })),
     };
   }
 
