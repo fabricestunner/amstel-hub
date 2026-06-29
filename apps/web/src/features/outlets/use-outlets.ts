@@ -50,7 +50,7 @@ export function useOutlets(params: {
       const qs = new URLSearchParams({ page: String(page), limit: '20' });
       if (search) qs.set('search', search);
       if (region && region !== 'all') qs.set('region', region);
-      if (status && status !== 'all') qs.set('status', status);
+      if (status && status !== 'all') qs.set('status', status.toUpperCase());
       return api.get<Outlet[] | Paginated<Outlet>>(`/outlets?${qs.toString()}`);
     },
     placeholderData: keepPreviousData,

@@ -213,12 +213,22 @@ export class OutletsService {
   private serialize(outlet: {
     totalPoints: bigint;
     totalSales: Prisma.Decimal;
+    customerCount: number;
+    status: string;
+    region?: { id: string; name: string } | null;
+    province?: { id: string; name: string } | null;
+    district?: { id: string; name: string } | null;
     [k: string]: unknown;
   }) {
+    const { region, province, district, totalPoints, totalSales, customerCount, status, ...rest } = outlet;
     return {
-      ...outlet,
-      totalPoints: Number(outlet.totalPoints),
-      totalSales: Number(outlet.totalSales),
+      ...rest,
+      region: region?.name ?? null,
+      province: province?.name ?? null,
+      district: district?.name ?? null,
+      status: status.toLowerCase(),
+      pointsGenerated: Number(totalPoints),
+      customers: customerCount,
     };
   }
 }
