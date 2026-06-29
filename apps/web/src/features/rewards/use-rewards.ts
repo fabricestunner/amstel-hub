@@ -103,7 +103,7 @@ export function useUpdateReward() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<RewardInput> }) =>
-      api.patch<Reward>(`/rewards/${id}`, input),
+      api.put<Reward>(`/rewards/${id}`, input),
     onSuccess: () => {
       toast.success('Reward updated');
       qc.invalidateQueries({ queryKey: ['rewards'] });

@@ -115,7 +115,7 @@ export function useEnterMatchResult() {
       scoreA: number;
       scoreB: number;
     }) =>
-      api.patch(`/tournaments/${vars.tournamentId}/matches/${vars.matchId}`, {
+      api.patch(`/tournaments/${vars.tournamentId}/matches/${vars.matchId}/result`, {
         scoreA: vars.scoreA,
         scoreB: vars.scoreB,
       }),
