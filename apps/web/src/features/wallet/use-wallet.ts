@@ -18,13 +18,18 @@ export function useWallet() {
   });
 }
 
+export interface RedeemResult {
+  pointsEarned: number;
+  availablePoints: number;
+  campaign: string;
+}
+
 export function useRedeemCode() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (code: string) =>
-      api.post<{ pointsEarned: number }>('/loyalty/redeem', { code }),
-    onSuccess: (res) => {
-      toast.success(`You earned ${res.pointsEarned} points! 🎉`);
+      api.post<RedeemResult>('/loyalty/redeem', { code }),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['wallet'] });
       qc.invalidateQueries({ queryKey: ['transactions'] });
     },

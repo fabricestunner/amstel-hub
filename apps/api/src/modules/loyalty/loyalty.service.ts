@@ -16,6 +16,7 @@ import {
 } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { FraudService } from '../fraud/fraud.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { RedeemCodeDto } from './dto/loyalty.dto';
 
 interface RedeemContext {
@@ -29,6 +30,7 @@ export class LoyaltyService {
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
     private readonly fraud: FraudService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -54,7 +56,7 @@ export class LoyaltyService {
         })
       : null;
 
-    return this.prisma.$transaction(
+    const result = await this.prisma.$transaction(
       async (tx) => {
         const code = await tx.loyaltyCode.findUnique({
           where: { codeHash },
@@ -125,10 +127,39 @@ export class LoyaltyService {
           availablePoints: Number(wallet.availablePoints),
           campaign: code.campaign.name,
         };
-        // TODO: emit "points.earned" event → notifications + leaderboard refresh.
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+
+    void this.dispatchRedemptionNotifications(userId, result.pointsEarned, result.availablePoints, result.campaign);
+    return result;
+  }
+
+  private async dispatchRedemptionNotifications(
+    userId: string,
+    pointsEarned: number,
+    totalPoints: number,
+    campaign: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, phone: true, firstName: true },
+    });
+    if (!user) return;
+
+    const name = user.firstName ?? 'Customer';
+    const title = `You earned ${pointsEarned} points!`;
+    const body = `Hi ${name}, you just earned ${pointsEarned} pts from the ${campaign} campaign. Total: ${totalPoints} pts. Keep redeeming to climb the leaderboard!`;
+
+    await Promise.allSettled([
+      this.notifications.dispatch(userId, 'IN_APP', title, body),
+      user.email
+        ? this.notifications.dispatch(userId, 'EMAIL', title, body)
+        : Promise.resolve(),
+      user.phone
+        ? this.notifications.dispatch(userId, 'SMS', title, `Amstel Rewards: You earned ${pointsEarned} pts! Total: ${totalPoints} pts. ${campaign}.`)
+        : Promise.resolve(),
+    ]);
   }
 
   async getWallet(userId: string) {

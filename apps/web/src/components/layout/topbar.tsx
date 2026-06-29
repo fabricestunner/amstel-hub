@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { initials } from '@/lib/format';
+import { useLogout } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 export interface TopbarProps {
@@ -32,6 +33,7 @@ export function Topbar({
   className,
 }: TopbarProps) {
   const displayName = user?.name ?? 'Account';
+  const logout = useLogout();
   return (
     <header
       className={cn(
@@ -105,7 +107,10 @@ export function Topbar({
             <Settings className="mr-2 h-4 w-4" /> Settings
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive focus:text-destructive">
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={() => void logout()}
+          >
             <LogOut className="mr-2 h-4 w-4" /> Sign out
           </DropdownMenuItem>
         </DropdownMenuContent>
