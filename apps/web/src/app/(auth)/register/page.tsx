@@ -75,7 +75,7 @@ export default function RegisterPage() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="phone">Phone</Label>
-            <Input id="phone" type="tel" placeholder="+31 6 12345678" {...register('phone')} />
+            <Input id="phone" type="tel" placeholder="+250 7XX XXX XXX" {...register('phone')} />
             {errors.phone && (
               <p className="text-sm text-destructive">{errors.phone.message}</p>
             )}
