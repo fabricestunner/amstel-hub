@@ -35,7 +35,7 @@ export default function AdminLayout({
 }) {
   const { isAuthenticated, isLoading } = useAuth({
     redirectTo: '/login',
-    roles: ['admin', 'super_admin'],
+    roles: ['SUPER_ADMIN', 'CAMPAIGN_MANAGER', 'REGIONAL_MANAGER'],
   });
 
   if (isLoading || !isAuthenticated) {

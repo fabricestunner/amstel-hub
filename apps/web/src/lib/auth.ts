@@ -101,7 +101,8 @@ export function useAuth(options?: {
   const router = useRouter();
   const { data: user, isLoading, isError } = useMe();
   const redirectTo = options?.redirectTo;
-  const roles = options?.roles;
+  // Stable string key so the effect doesn't re-fire on every render
+  const rolesKey = options?.roles?.join(',') ?? '';
 
   useEffect(() => {
     if (isLoading) return;
@@ -109,10 +110,11 @@ export function useAuth(options?: {
       if (redirectTo) router.replace(redirectTo);
       return;
     }
-    if (roles && user.role && !roles.includes(user.role)) {
+    const allowedRoles = rolesKey ? rolesKey.split(',') : null;
+    if (allowedRoles && user.role && !allowedRoles.includes(user.role)) {
       router.replace(roleHome(user.role));
     }
-  }, [isLoading, isError, user, redirectTo, roles, router]);
+  }, [isLoading, isError, user, redirectTo, rolesKey, router]);
 
   return {
     user,

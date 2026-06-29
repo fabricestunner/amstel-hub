@@ -20,7 +20,7 @@ export default function OutletLayout({
 }) {
   const { isAuthenticated, isLoading } = useAuth({
     redirectTo: '/login',
-    roles: ['outlet', 'admin', 'super_admin'],
+    roles: ['OUTLET_MANAGER', 'SUPER_ADMIN'],
   });
 
   if (isLoading || !isAuthenticated) {
