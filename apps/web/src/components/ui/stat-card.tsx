@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import * as React from 'react';
 
@@ -29,12 +28,7 @@ export function StatCard({
   const isRed = accent === 'red';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.35, ease: 'easeOut' }}
-    >
+    <div>
       <Card className="relative overflow-hidden p-5">
         <div
           className={cn(
@@ -85,6 +79,6 @@ export function StatCard({
           </div>
         )}
       </Card>
-    </motion.div>
+    </div>
   );
 }
