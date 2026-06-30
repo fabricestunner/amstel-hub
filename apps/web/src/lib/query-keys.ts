@@ -26,5 +26,10 @@ export const queryKeys = {
   analyticsTrends: (range?: string) => ['analytics-trends', range] as const,
   notifications: ['notifications'] as const,
   notificationPreferences: ['notification-preferences'] as const,
-  users: (page?: number, search?: string) => ['users', page, search] as const,
+  users: (params?: unknown) => ['users', params] as const,
+  settings: ['settings'] as const,
+  auditLogs: (page?: number, search?: string) =>
+    ['audit-logs', page, search] as const,
+  fraudFlags: (page?: number, status?: string) =>
+    ['fraud-flags', page, status] as const,
 } as const;

@@ -141,25 +141,31 @@ export class LoyaltyService {
     totalPoints: number,
     campaign: string,
   ) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true, phone: true, firstName: true },
-    });
-    if (!user) return;
+    // Fire-and-forget: never let a notification failure surface as an
+    // unhandled rejection or affect the redemption response.
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, phone: true, firstName: true },
+      });
+      if (!user) return;
 
-    const name = user.firstName ?? 'Customer';
-    const title = `You earned ${pointsEarned} points!`;
-    const body = `Hi ${name}, you just earned ${pointsEarned} pts from the ${campaign} campaign. Total: ${totalPoints} pts. Keep redeeming to climb the leaderboard!`;
+      const name = user.firstName ?? 'Customer';
+      const title = `You earned ${pointsEarned} points!`;
+      const body = `Hi ${name}, you just earned ${pointsEarned} pts from the ${campaign} campaign. Total: ${totalPoints} pts. Keep redeeming to climb the leaderboard!`;
 
-    await Promise.allSettled([
-      this.notifications.dispatch(userId, 'IN_APP', title, body),
-      user.email
-        ? this.notifications.dispatch(userId, 'EMAIL', title, body)
-        : Promise.resolve(),
-      user.phone
-        ? this.notifications.dispatch(userId, 'SMS', title, `Amstel Rewards: You earned ${pointsEarned} pts! Total: ${totalPoints} pts. ${campaign}.`)
-        : Promise.resolve(),
-    ]);
+      await Promise.allSettled([
+        this.notifications.dispatch(userId, 'IN_APP', title, body),
+        user.email
+          ? this.notifications.dispatch(userId, 'EMAIL', title, body)
+          : Promise.resolve(),
+        user.phone
+          ? this.notifications.dispatch(userId, 'SMS', title, `Amstel Rewards: You earned ${pointsEarned} pts! Total: ${totalPoints} pts. ${campaign}.`)
+          : Promise.resolve(),
+      ]);
+    } catch {
+      // swallow — redemption already succeeded
+    }
   }
 
   async getWallet(userId: string) {

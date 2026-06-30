@@ -36,6 +36,7 @@ import {
   useOutlets,
   useProvinces,
 } from '@/features/outlets/use-outlets';
+import { useUsers } from '@/features/users/use-users';
 
 const outletSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -46,6 +47,7 @@ const outletSchema = z.object({
   address: z.string().optional(),
   provinceId: z.string().min(1, 'Select a province'),
   districtId: z.string().min(1, 'Select a district'),
+  managerId: z.string().optional(),
 });
 type OutletForm = z.infer<typeof outletSchema>;
 
@@ -69,6 +71,10 @@ export default function AdminOutletsPage() {
 
   // All provinces for filter bar and form
   const { data: provinces = [] } = useProvinces();
+
+  // Outlet managers available to assign at creation time
+  const { data: managersData } = useUsers({ role: 'OUTLET_MANAGER', page: 1 });
+  const managers = managersData?.items ?? [];
 
   const {
     register,
@@ -98,6 +104,7 @@ export default function AdminOutletsPage() {
         regionId: province?.regionId ?? '',
         provinceId: values.provinceId,
         districtId: values.districtId,
+        managerId: values.managerId || undefined,
       },
       {
         onSuccess: () => {
@@ -251,7 +258,7 @@ export default function AdminOutletsPage() {
             <DialogHeader>
               <DialogTitle>Add outlet</DialogTitle>
               <DialogDescription>
-                Register a new outlet using Rwanda's province → district format.
+                Register a new outlet using Rwanda&apos;s province → district format.
               </DialogDescription>
             </DialogHeader>
 
@@ -330,6 +337,41 @@ export default function AdminOutletsPage() {
                 {errors.districtId && (
                   <p className="text-xs text-destructive">{errors.districtId.message}</p>
                 )}
+              </div>
+
+              {/* Manager */}
+              <div className="space-y-2">
+                <Label>
+                  Manager{' '}
+                  <span className="text-muted-foreground">(optional)</span>
+                </Label>
+                <Select
+                  value={watch('managerId') || ''}
+                  onValueChange={(v) => setValue('managerId', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        managers.length === 0
+                          ? 'No outlet managers yet'
+                          : 'Assign a manager…'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {managers.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {[m.firstName, m.lastName].filter(Boolean).join(' ') ||
+                          m.email ||
+                          m.phone}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Create managers under Team. A manager already running another
+                  outlet cannot be reassigned.
+                </p>
               </div>
 
               {/* Address */}

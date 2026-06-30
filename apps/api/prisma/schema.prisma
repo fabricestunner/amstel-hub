@@ -22,6 +22,7 @@ enum UserRole {
   CAMPAIGN_MANAGER
   REGIONAL_MANAGER
   OUTLET_MANAGER
+  PROMOTER
   CUSTOMER
 }
 
@@ -781,4 +782,13 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([action])
   @@map("audit_logs")
+}
+
+/// Key-value store for platform-wide configuration editable from the admin console.
+model PlatformSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("platform_settings")
 }

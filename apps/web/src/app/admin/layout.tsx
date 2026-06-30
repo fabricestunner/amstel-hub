@@ -8,8 +8,10 @@ import {
   Medal,
   Megaphone,
   Settings,
+  ShieldAlert,
   Ticket,
   Trophy,
+  UserCog,
   Users,
 } from 'lucide-react';
 
@@ -25,8 +27,10 @@ const nav = [
   { href: '/admin/outlets', label: 'Outlets', icon: Building2 },
   { href: '/admin/vouchers', label: 'Vouchers', icon: Ticket },
   { href: '/admin/customers', label: 'Customers', icon: Users },
+  { href: '/admin/team', label: 'Team', icon: UserCog },
   { href: '/admin/leaderboards', label: 'Leaderboards', icon: Medal },
   { href: '/admin/reports', label: 'Reports', icon: FileText },
+  { href: '/admin/audit', label: 'Audit & Fraud', icon: ShieldAlert },
   { href: '/admin/settings', label: 'Settings', icon: Settings },
 ];
 

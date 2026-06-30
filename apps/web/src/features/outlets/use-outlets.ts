@@ -109,6 +109,7 @@ export interface CreateOutletInput {
   regionId: string;
   provinceId: string;
   districtId: string;
+  managerId?: string;
 }
 
 export function useCreateOutlet() {

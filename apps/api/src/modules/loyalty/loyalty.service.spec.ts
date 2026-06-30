@@ -16,6 +16,10 @@ describe('LoyaltyService.redeemCode', () => {
   const fraud = {
     checkRedemptionVelocity: jest.fn().mockResolvedValue(false),
   } as unknown as FraudService;
+  // Notifications are fired non-blocking after redemption; stub them out.
+  const notifications = {
+    dispatch: jest.fn().mockResolvedValue(undefined),
+  } as unknown as import('../notifications/notifications.service').NotificationsService;
 
   function buildPrisma(code: unknown, claimedCount = 1): PrismaService {
     const tx = {
@@ -37,7 +41,7 @@ describe('LoyaltyService.redeemCode', () => {
   const dto = { code: 'amstel-code' };
 
   it('throws when the code does not exist', async () => {
-    const service = new LoyaltyService(buildPrisma(null), crypto, fraud);
+    const service = new LoyaltyService(buildPrisma(null), crypto, fraud, notifications);
     await expect(service.redeemCode('u1', dto, ctx)).rejects.toThrow(
       NotFoundException,
     );
@@ -45,7 +49,7 @@ describe('LoyaltyService.redeemCode', () => {
 
   it('throws when the code is already redeemed', async () => {
     const code = { id: 'c1', status: 'REDEEMED', campaign: { status: 'ACTIVE' } };
-    const service = new LoyaltyService(buildPrisma(code), crypto, fraud);
+    const service = new LoyaltyService(buildPrisma(code), crypto, fraud, notifications);
     await expect(service.redeemCode('u1', dto, ctx)).rejects.toThrow(
       ConflictException,
     );
@@ -61,7 +65,7 @@ describe('LoyaltyService.redeemCode', () => {
       expiresAt: null,
       campaign: { status: 'ACTIVE', name: 'Summer Promo' },
     };
-    const service = new LoyaltyService(buildPrisma(code), crypto, fraud);
+    const service = new LoyaltyService(buildPrisma(code), crypto, fraud, notifications);
     const result = await service.redeemCode('u1', dto, ctx);
     expect(result.pointsEarned).toBe(20);
     expect(result.availablePoints).toBe(120);
@@ -78,7 +82,7 @@ describe('LoyaltyService.redeemCode', () => {
       expiresAt: null,
       campaign: { status: 'ACTIVE', name: 'Summer Promo' },
     };
-    const service = new LoyaltyService(buildPrisma(code, 0), crypto, fraud);
+    const service = new LoyaltyService(buildPrisma(code, 0), crypto, fraud, notifications);
     await expect(service.redeemCode('u1', dto, ctx)).rejects.toThrow(
       ConflictException,
     );
@@ -89,7 +93,7 @@ describe('LoyaltyService.redeemCode', () => {
       checkRedemptionVelocity: jest.fn().mockResolvedValue(true),
     } as unknown as FraudService;
     const prisma = buildPrisma(null);
-    const service = new LoyaltyService(prisma, crypto, abusiveFraud);
+    const service = new LoyaltyService(prisma, crypto, abusiveFraud, notifications);
     await expect(service.redeemCode('u1', dto, ctx)).rejects.toMatchObject({
       status: 429,
     });

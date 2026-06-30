@@ -24,6 +24,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { OutletsModule } from './modules/outlets/outlets.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { RewardsModule } from './modules/rewards/rewards.module';
+import { SettingsModule } from './modules/settings/settings.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { TournamentsModule } from './modules/tournaments/tournaments.module';
 import { UsersModule } from './modules/users/users.module';
@@ -65,6 +66,7 @@ import { UsersModule } from './modules/users/users.module';
     AnalyticsModule,
     NotificationsModule,
     StorageModule,
+    SettingsModule,
     AuditModule,
     FraudModule,
     ReportsModule,

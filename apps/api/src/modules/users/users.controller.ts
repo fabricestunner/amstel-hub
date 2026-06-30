@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
+  Post,
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
@@ -15,6 +17,7 @@ import {
 } from '../../common/decorators';
 import {
   ChangePasswordDto,
+  CreateUserDto,
   ListUsersQueryDto,
   UpdateProfileDto,
   UpdateUserRoleDto,
@@ -65,6 +68,13 @@ export class UsersController {
     return this.users.list(query);
   }
 
+  /** Admin — create a staff user (manager, promoter). */
+  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
+  @Post()
+  create(@Body() dto: CreateUserDto) {
+    return this.users.create(dto);
+  }
+
   @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
   @Get(':id')
   findOne(@Param('id') id: string) {
@@ -94,5 +104,15 @@ export class UsersController {
     @Body() dto: UpdateUserRoleDto,
   ) {
     return this.users.updateRole(current.id, id, dto);
+  }
+
+  /** SUPER_ADMIN only — soft-delete a user. */
+  @Roles('SUPER_ADMIN')
+  @Delete(':id')
+  remove(
+    @CurrentUser() current: AuthenticatedUser,
+    @Param('id') id: string,
+  ) {
+    return this.users.remove(current.id, id);
   }
 }

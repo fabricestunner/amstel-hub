@@ -10,6 +10,7 @@ import { paginate } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   ChangePasswordDto,
+  CreateUserDto,
   ListUsersQueryDto,
   UpdateProfileDto,
   UpdateUserRoleDto,
@@ -43,10 +44,105 @@ export class UsersService {
     return user;
   }
 
+  /** Admin — create a staff user (manager, promoter). Customers self-register. */
+  async create(dto: CreateUserDto) {
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { phone: dto.phone },
+          ...(dto.email ? [{ email: dto.email }] : []),
+        ],
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        'A user with this phone or email already exists',
+      );
+    }
+
+    if (dto.outletId) {
+      const outlet = await this.prisma.outlet.findUnique({
+        where: { id: dto.outletId },
+        select: { managerId: true },
+      });
+      if (!outlet) throw new NotFoundException('Outlet not found');
+      if (outlet.managerId) {
+        throw new BadRequestException('That outlet already has a manager');
+      }
+    }
+
+    const passwordHash = await argon2.hash(dto.password);
+
+    return this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          phone: dto.phone,
+          email: dto.email,
+          role: dto.role,
+          passwordHash,
+          status: 'ACTIVE',
+          // staff accounts are pre-verified by the admin who creates them
+          phoneVerified: true,
+          emailVerified: Boolean(dto.email),
+          regionId: dto.regionId,
+        },
+        select: PUBLIC_USER_FIELDS,
+      });
+
+      // Wire a freshly created OUTLET_MANAGER to their outlet (1:1).
+      if (dto.role === 'OUTLET_MANAGER' && dto.outletId) {
+        await tx.outlet.update({
+          where: { id: dto.outletId },
+          data: { managerId: user.id },
+        });
+      }
+
+      return user;
+    });
+  }
+
+  /** Admin — soft-delete a user. SUPER_ADMINs cannot be removed. */
+  async remove(actorId: string, targetId: string) {
+    if (actorId === targetId) {
+      throw new BadRequestException('You cannot delete your own account');
+    }
+    const target = await this.prisma.user.findFirst({
+      where: { id: targetId, deletedAt: null },
+      select: { id: true, role: true, managedOutlet: { select: { id: true } } },
+    });
+    if (!target) throw new NotFoundException('User not found');
+    if (target.role === 'SUPER_ADMIN') {
+      throw new BadRequestException('Cannot delete a SUPER_ADMIN');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // Release the outlet they manage so it can be reassigned.
+      if (target.managedOutlet) {
+        await tx.outlet.update({
+          where: { id: target.managedOutlet.id },
+          data: { managerId: null },
+        });
+      }
+      await tx.user.update({
+        where: { id: targetId },
+        data: { deletedAt: new Date(), status: 'SUSPENDED' },
+      });
+    });
+
+    return { success: true };
+  }
+
   async list(query: ListUsersQueryDto) {
     const where = {
       deletedAt: null,
-      ...(query.role ? { role: query.role } : {}),
+      ...(query.role
+        ? { role: query.role }
+        : query.staffOnly
+          ? { role: { not: 'CUSTOMER' as const } }
+          : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.outletId ? { outletId: query.outletId } : {}),
       ...(query.search

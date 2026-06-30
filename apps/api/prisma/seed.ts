@@ -105,6 +105,9 @@ async function main() {
   const outletManager = await mkUser('+254700000004', 'OUTLET_MANAGER', 'outlet@amstel.com', {
     firstName: 'Outlet', lastName: 'Manager',
   });
+  await mkUser('+254700000005', 'PROMOTER', 'promoter@amstel.com', {
+    firstName: 'Field', lastName: 'Promoter',
+  });
 
   const outlet = await prisma.outlet.upsert({
     where: { code: 'OUT-001' },
