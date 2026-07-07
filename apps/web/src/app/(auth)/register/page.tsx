@@ -87,7 +87,7 @@ export default function RegisterPage() {
       <CardHeader className="pb-4">
         <CardTitle className="text-xl font-bold tracking-tight">Create your account</CardTitle>
         <CardDescription>
-          Join Amstel Rewards to earn points and unlock prizes.
+          Loyal Friends of Amstel Rewards. Join to earn points and unlock prizes.
         </CardDescription>
       </CardHeader>
 
