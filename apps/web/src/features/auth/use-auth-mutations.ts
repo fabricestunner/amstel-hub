@@ -69,7 +69,7 @@ export function useRegister() {
       api.post<RegisterResponse>('/auth/register', payload),
     onSuccess: (data) => {
       const via = data.channel === 'EMAIL' ? 'email' : 'SMS';
-      toast.success(`Account created. We sent a code via ${via}.`);
+      toast.success(`Verification code sent to your ${via} instantly.`);
       router.push(`/verify-otp?identifier=${encodeURIComponent(data.identifier)}`);
     },
     onError: (err: Error) => toast.error(err.message || 'Registration failed'),

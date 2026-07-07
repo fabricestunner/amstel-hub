@@ -125,6 +125,24 @@ export function useCreateOutlet() {
   });
 }
 
+export function useUpdateOutlet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<CreateOutletInput> & { status?: 'active' | 'inactive' };
+    }) => api.patch<Outlet>(`/outlets/${id}`, data),
+    onSuccess: () => {
+      toast.success('Outlet updated');
+      qc.invalidateQueries({ queryKey: ['outlets'] });
+    },
+    onError: (err: Error) => toast.error(err.message || 'Could not update outlet'),
+  });
+}
+
 export function useDeleteOutlet() {
   const qc = useQueryClient();
   return useMutation({

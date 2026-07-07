@@ -7,6 +7,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Max,
   Min,
@@ -82,6 +83,11 @@ export class GenerateCodesDto {
   @ApiProperty({ enum: CodeType })
   @IsEnum(CodeType)
   type!: CodeType;
+
+  @ApiPropertyOptional({ description: 'Outlet to associate with the generated codes' })
+  @IsOptional()
+  @IsUUID()
+  outletId?: string;
 
   @ApiPropertyOptional({ description: 'Defaults to campaign.pointsPerCode' })
   @IsOptional()

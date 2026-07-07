@@ -42,7 +42,7 @@ export default function LoginPage() {
       <CardHeader className="pb-4">
         <CardTitle className="text-xl font-bold tracking-tight">Sign in</CardTitle>
         <CardDescription>
-          Welcome back. Enter your details to access your dashboard.
+          Loyal Friends of Amstel Rewards. Enter your details to access your dashboard.
         </CardDescription>
       </CardHeader>
 

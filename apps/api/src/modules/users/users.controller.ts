@@ -20,6 +20,7 @@ import {
   CreateUserDto,
   ListUsersQueryDto,
   UpdateProfileDto,
+  UpdateUserDto,
   UpdateUserRoleDto,
   UpdateUserStatusDto,
 } from './dto/user.dto';
@@ -79,6 +80,13 @@ export class UsersController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.users.findById(id);
+  }
+
+  /** Admin — edit a user's profile details (name, phone, email). */
+  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
+  @Patch(':id')
+  updateUser(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    return this.users.updateUser(id, dto);
   }
 
   /** Admin — view a user's wallet balance. */

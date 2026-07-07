@@ -1,6 +1,6 @@
 'use client';
 
-import { Printer, RefreshCw, Ticket } from 'lucide-react';
+import { Printer, RefreshCw, Store, Ticket } from 'lucide-react';
 import Image from 'next/image';
 import { useRef, useState } from 'react';
 import QRCode from 'react-qr-code';
@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCampaigns, useGenerateCodes, type GenerateCodesResult } from '@/features/campaigns/use-campaigns';
+import { useOutlets } from '@/features/outlets/use-outlets';
 
 interface GeneratedVoucher {
   code: string;
@@ -27,6 +28,7 @@ interface GeneratedVoucher {
 
 export default function AdminVouchersPage() {
   const [campaignId, setCampaignId] = useState('');
+  const [outletId, setOutletId] = useState('');
   const [count, setCount] = useState(50);
   const [type, setType] = useState('PROMO');
   const [vouchers, setVouchers] = useState<GeneratedVoucher[]>([]);
@@ -36,13 +38,18 @@ export default function AdminVouchersPage() {
   const { data: campaignsData } = useCampaigns(1);
   const campaigns = campaignsData?.items ?? [];
 
+  const { data: outletsData } = useOutlets({ page: 1 });
+  const outlets = Array.isArray(outletsData)
+    ? outletsData
+    : (outletsData?.items ?? []);
+
   const generate = useGenerateCodes();
 
   function onGenerate() {
     if (!campaignId) return;
     const selected = campaigns.find((c) => c.id === campaignId);
     generate.mutate(
-      { id: campaignId, count, type },
+      { id: campaignId, count, type, outletId: outletId || undefined },
       {
         onSuccess: (res: GenerateCodesResult) => {
           setVouchers((res.codes ?? []).map((code, i) => ({ code, index: i + 1 })));
@@ -118,6 +125,30 @@ export default function AdminVouchersPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>
+                Outlet <span className="text-muted-foreground">(optional)</span>
+              </Label>
+              <Select value={outletId} onValueChange={setOutletId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Link to an outlet…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {outlets.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      <span className="flex items-center gap-2">
+                        <Store className="h-3.5 w-3.5" />
+                        {o.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Linking vouchers to an outlet lets you track how that outlet is performing.
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

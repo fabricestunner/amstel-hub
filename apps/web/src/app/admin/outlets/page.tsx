@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MapPin, Plus, Trash2 } from 'lucide-react';
+import { MapPin, MoreHorizontal, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -18,6 +18,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/ui/page-header';
@@ -35,6 +43,7 @@ import {
   useDistricts,
   useOutlets,
   useProvinces,
+  useUpdateOutlet,
 } from '@/features/outlets/use-outlets';
 import { useUsers } from '@/features/users/use-users';
 
@@ -57,10 +66,12 @@ export default function AdminOutletsPage() {
   const [provinceFilter, setProvinceFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Outlet | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Outlet | null>(null);
 
   const { data, isLoading } = useOutlets({ page, search, status: statusFilter });
   const createOutlet = useCreateOutlet();
+  const updateOutlet = useUpdateOutlet();
   const deleteOutlet = useDeleteOutlet();
 
   const outlets = useMemo(
@@ -236,14 +247,53 @@ export default function AdminOutletsPage() {
                 key: 'actions',
                 header: '',
                 render: (r: Outlet) => (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => setDeleteTarget(r)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuLabel>Manage</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+
+                        <DropdownMenuItem onClick={() => setEditTarget(r)}>
+                          <Pencil className="mr-2 h-4 w-4" /> Edit details
+                        </DropdownMenuItem>
+
+                        {r.status !== 'active' && (
+                          <DropdownMenuItem
+                            disabled={updateOutlet.isPending}
+                            onClick={() =>
+                              updateOutlet.mutate({ id: r.id, data: { status: 'active' } })
+                            }
+                          >
+                            Activate
+                          </DropdownMenuItem>
+                        )}
+                        {r.status === 'active' && (
+                          <DropdownMenuItem
+                            disabled={updateOutlet.isPending}
+                            onClick={() =>
+                              updateOutlet.mutate({ id: r.id, data: { status: 'inactive' } })
+                            }
+                          >
+                            Deactivate
+                          </DropdownMenuItem>
+                        )}
+
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => setDeleteTarget(r)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 ),
               },
             ]}
@@ -404,6 +454,20 @@ export default function AdminOutletsPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ── Edit outlet dialog ── */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+        <DialogContent className="max-w-lg">
+          {editTarget && (
+            <EditOutletForm
+              outlet={editTarget}
+              provinces={provinces}
+              managers={managers}
+              onClose={() => setEditTarget(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* ── Delete confirmation ── */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <DialogContent>
@@ -429,5 +493,172 @@ export default function AdminOutletsPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function EditOutletForm({
+  outlet,
+  provinces,
+  managers,
+  onClose,
+}: {
+  outlet: Outlet;
+  provinces: { id: string; name: string; regionId?: string }[];
+  managers: { id: string; firstName?: string; lastName?: string; email?: string; phone?: string }[];
+  onClose: () => void;
+}) {
+  const updateOutlet = useUpdateOutlet();
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<OutletForm>({
+    resolver: zodResolver(outletSchema),
+    defaultValues: {
+      name: outlet.name,
+      code: outlet.code ?? '',
+      address: outlet.address ?? '',
+      provinceId: provinces.find((p) => p.name === outlet.province)?.id ?? '',
+      districtId: '',
+      managerId: '',
+    },
+  });
+
+  const selectedProvinceId = watch('provinceId');
+  const { data: districts = [] } = useDistricts(selectedProvinceId);
+
+  // Resolve initial district once districts load
+  useEffect(() => {
+    if (!outlet.district || districts.length === 0) return;
+    const match = districts.find((d) => d.name === outlet.district);
+    if (match) setValue('districtId', match.id);
+  }, [districts, outlet.district, setValue]);
+
+  function onSubmit(values: OutletForm) {
+    const province = provinces.find((p) => p.id === values.provinceId);
+    updateOutlet.mutate(
+      {
+        id: outlet.id,
+        data: {
+          name: values.name,
+          code: values.code,
+          address: values.address,
+          regionId: province?.regionId,
+          provinceId: values.provinceId,
+          districtId: values.districtId,
+          managerId: values.managerId || undefined,
+        },
+      },
+      { onSuccess: onClose },
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <DialogHeader>
+        <DialogTitle>Edit outlet</DialogTitle>
+        <DialogDescription>Update {outlet.name} details.</DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4 py-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="edit-name">Outlet name</Label>
+            <Input id="edit-name" {...register('name')} />
+            {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="edit-code">Code</Label>
+            <Input id="edit-code" className="uppercase" {...register('code')} />
+            {errors.code && <p className="text-xs text-destructive">{errors.code.message}</p>}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Province</Label>
+          <Select
+            value={selectedProvinceId}
+            onValueChange={(v) => setValue('provinceId', v, { shouldValidate: true })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select province…" />
+            </SelectTrigger>
+            <SelectContent>
+              {provinces.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.provinceId && (
+            <p className="text-xs text-destructive">{errors.provinceId.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>District</Label>
+          <Select
+            value={watch('districtId')}
+            onValueChange={(v) => setValue('districtId', v, { shouldValidate: true })}
+            disabled={!selectedProvinceId || districts.length === 0}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select district…" />
+            </SelectTrigger>
+            <SelectContent>
+              {districts.map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.districtId && (
+            <p className="text-xs text-destructive">{errors.districtId.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>
+            Manager <span className="text-muted-foreground">(optional)</span>
+          </Label>
+          <Select
+            value={watch('managerId') || ''}
+            onValueChange={(v) => setValue('managerId', v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Assign a manager…" />
+            </SelectTrigger>
+            <SelectContent>
+              {managers.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {[m.firstName, m.lastName].filter(Boolean).join(' ') || m.email || m.phone}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="edit-address">
+            Address <span className="text-muted-foreground">(optional)</span>
+          </Label>
+          <Input id="edit-address" {...register('address')} />
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={() => { onClose(); reset(); }}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={updateOutlet.isPending}>
+          {updateOutlet.isPending ? 'Saving…' : 'Save changes'}
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

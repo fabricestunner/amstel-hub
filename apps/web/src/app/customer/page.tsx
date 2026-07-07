@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Coins, Gift, Sparkles, TrendingUp, Trophy, X } from 'lucide-react';
+import { CheckCircle2, Coins, Gift, Sparkles, TrendingUp, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -74,110 +74,79 @@ export default function CustomerDashboard() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Redemption card */}
-        <div className="lg:col-span-2 space-y-4">
-          {/* Success banner */}
-          {lastResult && (
-            <div className="relative flex items-start gap-4 rounded-xl border border-green-500/30 bg-green-50 p-5 dark:bg-green-900/20">
-              <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-600 dark:text-green-400" />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-green-700 dark:text-green-400">
-                  Code redeemed successfully!
-                </p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  <span className="font-bold text-foreground text-lg">+{lastResult.pointsEarned}</span> points earned
-                  {lastResult.campaign ? ` from ${lastResult.campaign}` : ''}.
-                  Your total is now{' '}
-                  <span className="font-semibold">{lastResult.availablePoints.toLocaleString()} pts</span>.
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  You will receive a confirmation by SMS and email.
-                </p>
-              </div>
-              <button
-                onClick={() => setLastResult(null)}
-                className="shrink-0 rounded p-0.5 hover:bg-emerald-500/20"
-              >
-                <X className="h-4 w-4 text-muted-foreground" />
-              </button>
+      <div className="max-w-3xl">
+        {/* Success banner */}
+        {lastResult && (
+          <div className="relative flex items-start gap-4 rounded-xl border border-green-500/30 bg-green-50 p-5 dark:bg-green-900/20">
+            <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-600 dark:text-green-400" />
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-green-700 dark:text-green-400">
+                Code redeemed successfully!
+              </p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                <span className="font-bold text-foreground text-lg">+{lastResult.pointsEarned}</span> points earned
+                {lastResult.campaign ? ` from ${lastResult.campaign}` : ''}.
+                Your total is now{' '}
+                <span className="font-semibold">{lastResult.availablePoints.toLocaleString()} pts</span>.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                You will receive a confirmation by SMS and email.
+              </p>
             </div>
-          )}
+            <button
+              onClick={() => setLastResult(null)}
+              className="shrink-0 rounded p-0.5 hover:bg-emerald-500/20"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+        )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-amstel-gold" />
-                Redeem a code
-              </CardTitle>
-              <CardDescription>
-                Enter the unique code printed on your Amstel product or voucher.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <form className="flex flex-col gap-3 sm:flex-row" onSubmit={handleRedeem}>
-                <Input
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.toUpperCase())}
-                  placeholder="AMSTEL-XXXX-XXXX"
-                  className="flex-1 font-mono text-base tracking-widest"
-                  disabled={redeem.isPending}
-                  autoComplete="off"
-                  autoCapitalize="characters"
-                />
-                <Button
-                  type="submit"
-                  disabled={!code || redeem.isPending}
-                  className="shrink-0 bg-amstel-red text-white hover:bg-amstel-red-dark"
-                >
-                  {redeem.isPending ? 'Redeeming…' : 'Redeem'}
-                </Button>
-              </form>
-
-              {/* Error display */}
-              {redeem.isError && (
-                <p className="text-sm text-destructive">
-                  {(redeem.error as Error)?.message ?? 'Failed to redeem. Please try again.'}
-                </p>
-              )}
-
-              <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">How it works</p>
-                <ol className="list-decimal list-inside space-y-1">
-                  <li>Find the code on your Amstel bottle, can, or promo voucher</li>
-                  <li>Enter the code above and click Redeem</li>
-                  <li>Points are added instantly to your wallet</li>
-                  <li>Use points for rewards or tournament entries</li>
-                </ol>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Rank card */}
-        <Card className="border-amstel-gold/40 bg-amstel-gold/5">
+        <Card className="mt-4">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-amstel-gold" />
-              Your rank
+              <Sparkles className="h-5 w-5 text-amstel-gold" />
+              Redeem a code
             </CardTitle>
-            <CardDescription>Current leaderboard standing</CardDescription>
+            <CardDescription>
+              Enter the unique code printed on your Amstel product or voucher.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-extrabold text-amstel-gold">
-                {me?.rank ? `#${me.rank}` : '—'}
-              </span>
-              {me?.region && <Badge variant="gold">{me.region}</Badge>}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Keep redeeming to climb the leaderboard and win prizes.
-            </p>
-            <div className="pt-2 border-t">
-              <p className="text-xs text-muted-foreground">Lifetime points</p>
-              <p className="text-xl font-bold">
-                {walletLoading ? '—' : (wallet?.lifetimePoints ?? 0).toLocaleString()}
+          <CardContent className="space-y-4">
+            <form className="flex flex-col gap-3 sm:flex-row" onSubmit={handleRedeem}>
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="AMSTEL-XXXX-XXXX"
+                className="flex-1 font-mono text-base tracking-widest"
+                disabled={redeem.isPending}
+                autoComplete="off"
+                autoCapitalize="characters"
+              />
+              <Button
+                type="submit"
+                disabled={!code || redeem.isPending}
+                className="shrink-0 bg-amstel-red text-white hover:bg-amstel-red-dark"
+              >
+                {redeem.isPending ? 'Redeeming…' : 'Redeem'}
+              </Button>
+            </form>
+
+            {/* Error display */}
+            {redeem.isError && (
+              <p className="text-sm text-destructive">
+                {(redeem.error as Error)?.message ?? 'Failed to redeem. Please try again.'}
               </p>
+            )}
+
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">How it works</p>
+              <ol className="list-decimal list-inside space-y-1">
+                <li>Find the code on your Amstel bottle, can, or promo voucher</li>
+                <li>Enter the code above and click Redeem</li>
+                <li>Points are added instantly to your wallet</li>
+                <li>Use points for rewards or tournament entries</li>
+              </ol>
             </div>
           </CardContent>
         </Card>

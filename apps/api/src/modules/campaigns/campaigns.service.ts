@@ -184,6 +184,7 @@ export class CampaignsService {
 
     const rows: Prisma.LoyaltyCodeCreateManyInput[] = rawCodes.map((code) => ({
       campaignId,
+      outletId: dto.outletId,
       type: dto.type,
       codeHash: this.crypto.hash(code),
       codeCipher: this.crypto.encrypt(code),

@@ -395,6 +395,7 @@ model Outlet {
   regionalRank    Int?
 
   customers       User[]              @relation("OutletCustomers")
+  loyaltyCodes    LoyaltyCode[]
   codeRedemptions CodeRedemption[]
   pointsTxns      PointsTransaction[]
   leaderboardRows LeaderboardEntry[]
@@ -454,6 +455,8 @@ model LoyaltyCode {
   id         String     @id @default(uuid()) @db.Uuid
   campaignId String     @db.Uuid
   campaign   Campaign   @relation(fields: [campaignId], references: [id])
+  outletId   String?    @db.Uuid
+  outlet     Outlet?    @relation(fields: [outletId], references: [id])
   type       CodeType
   // public lookup hash (sha-256) — the raw code is never stored in plaintext
   codeHash   String     @unique
@@ -471,6 +474,7 @@ model LoyaltyCode {
 
   @@index([campaignId, status])
   @@index([batchId])
+  @@index([outletId])
   @@map("loyalty_codes")
 }
 

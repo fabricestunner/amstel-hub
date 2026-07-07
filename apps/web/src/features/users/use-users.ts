@@ -77,11 +77,11 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: (input: CreateUserInput) => api.post<UserRow>('/users', input),
     onSuccess: () => {
-      toast.success('Team member added');
+      toast.success('Account created');
       qc.invalidateQueries({ queryKey: ['users'] });
       qc.invalidateQueries({ queryKey: ['outlets'] });
     },
-    onError: (err: Error) => toast.error(err.message || 'Could not add member'),
+    onError: (err: Error) => toast.error(err.message || 'Could not create account'),
   });
 }
 
@@ -108,6 +108,24 @@ export function useUpdateUserRole() {
       qc.invalidateQueries({ queryKey: ['users'] });
     },
     onError: (err: Error) => toast.error(err.message || 'Could not update role'),
+  });
+}
+
+export function useUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Partial<Pick<UserRow, 'firstName' | 'lastName' | 'email' | 'phone'>>;
+    }) => api.patch<UserRow>(`/users/${id}`, data),
+    onSuccess: () => {
+      toast.success('Customer updated');
+      qc.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (err: Error) => toast.error(err.message || 'Could not update customer'),
   });
 }
 

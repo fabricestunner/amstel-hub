@@ -82,10 +82,15 @@ export interface GenerateCodesResult {
 export function useGenerateCodes() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: { id: string; count: number; type: string }) =>
+    mutationFn: (vars: {
+      id: string;
+      count: number;
+      type: string;
+      outletId?: string;
+    }) =>
       api.post<GenerateCodesResult>(
         `/campaigns/${vars.id}/codes/generate`,
-        { count: vars.count, type: vars.type },
+        { count: vars.count, type: vars.type, outletId: vars.outletId },
       ),
     onSuccess: () => {
       toast.success('Codes generated');

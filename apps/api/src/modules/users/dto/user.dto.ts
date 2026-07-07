@@ -14,14 +14,15 @@ import {
 
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
 
-/** Roles an admin may assign when creating a staff member (never CUSTOMER here). */
-const STAFF_ROLES = [
+/** Roles an admin may assign when creating a staff member or customer. */
+const CREATABLE_ROLES = [
+  'CUSTOMER',
   'CAMPAIGN_MANAGER',
   'REGIONAL_MANAGER',
   'OUTLET_MANAGER',
   'PROMOTER',
 ] as const;
-export type StaffRole = (typeof STAFF_ROLES)[number];
+export type CreatableRole = (typeof CREATABLE_ROLES)[number];
 
 export class CreateUserDto {
   @ApiProperty({ description: 'First name' })
@@ -42,9 +43,9 @@ export class CreateUserDto {
   @IsEmail()
   email?: string;
 
-  @ApiProperty({ enum: STAFF_ROLES, description: 'Staff role to assign' })
-  @IsEnum(STAFF_ROLES)
-  role!: StaffRole;
+  @ApiProperty({ enum: CREATABLE_ROLES, description: 'Role to assign' })
+  @IsEnum(CREATABLE_ROLES)
+  role!: CreatableRole;
 
   @ApiProperty({ description: 'Initial password (min 6 characters)', minLength: 6 })
   @IsString()
@@ -86,6 +87,28 @@ export class UpdateUserStatusDto {
   @ApiProperty({ enum: SETTABLE_STATUSES })
   @IsEnum(SETTABLE_STATUSES)
   status!: SettableStatus;
+}
+
+export class UpdateUserDto {
+  @ApiPropertyOptional({ description: 'First name' })
+  @IsOptional()
+  @IsString()
+  firstName?: string;
+
+  @ApiPropertyOptional({ description: 'Last name' })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiPropertyOptional({ description: 'Phone number (E.164, e.g. +250788123456)' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ description: 'Email address' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 }
 
 export class UpdateUserRoleDto {

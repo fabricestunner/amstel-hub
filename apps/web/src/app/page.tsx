@@ -117,13 +117,13 @@ export default function HomePage() {
             />
 
             <Badge className="gap-1.5 border-white/30 bg-white/15 px-3 py-1 text-sm text-white backdrop-blur-sm">
-              <Trophy className="h-3.5 w-3.5" /> Nationwide Loyalty &amp; Pool Tournament Campaign
+              <Trophy className="h-3.5 w-3.5" /> Loyal Friends of Amstel Rewards
             </Badge>
 
             <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
-              Earn. Play.{' '}
+              Loyal Friends of{' '}
               <span className="relative inline-block">
-                <span className="text-amstel-gold">Win.</span>
+                <span className="text-amstel-gold">Amstel Rewards</span>
                 <span className="absolute -bottom-1 left-0 right-0 h-[3px] rounded-full bg-amstel-gold/60" />
               </span>
             </h1>

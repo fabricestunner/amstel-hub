@@ -5,7 +5,6 @@ import {
   Gift,
   History,
   Trophy,
-  Medal,
   User,
   Wallet,
 } from 'lucide-react';
@@ -18,7 +17,6 @@ const nav = [
   { href: '/customer', label: 'Wallet', icon: Wallet },
   { href: '/customer/rewards', label: 'Rewards', icon: Gift },
   { href: '/customer/tournaments', label: 'Tournaments', icon: Trophy },
-  { href: '/customer/leaderboard', label: 'Leaderboard', icon: Medal },
   { href: '/customer/history', label: 'History', icon: History },
   { href: '/customer/notifications', label: 'Notifications', icon: Bell },
   { href: '/customer/profile', label: 'Profile', icon: User },

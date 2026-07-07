@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 import { paginate } from '../../common/dto/pagination.dto';
@@ -14,6 +15,7 @@ import {
   CreateUserDto,
   ListUsersQueryDto,
   UpdateProfileDto,
+  UpdateUserDto,
   UpdateUserRoleDto,
   UpdateUserStatusDto,
 } from './dto/user.dto';
@@ -77,19 +79,22 @@ export class UsersService {
 
     const passwordHash = await argon2.hash(dto.password);
 
+    const isCustomer = dto.role === 'CUSTOMER';
+    const status = isCustomer ? 'PENDING' : 'ACTIVE';
+
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           firstName: dto.firstName,
           lastName: dto.lastName,
-          phone,
-          email,
+          phone: phone || null,
+          email: email || null,
           role: dto.role,
           passwordHash,
-          status: 'ACTIVE',
-          // staff accounts are pre-verified by the admin who creates them
-          phoneVerified: Boolean(phone),
-          emailVerified: Boolean(email),
+          status,
+          // staff accounts are pre-verified by the admin who creates them; customers start pending
+          phoneVerified: !isCustomer && Boolean(phone),
+          emailVerified: !isCustomer && Boolean(email),
           regionId: dto.regionId,
         },
         select: PUBLIC_USER_FIELDS,
@@ -197,6 +202,21 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id },
       data: dto,
+      select: PUBLIC_USER_FIELDS,
+    });
+  }
+
+  async updateUser(id: string, dto: UpdateUserDto) {
+    await this.findById(id);
+    const data: Prisma.UserUpdateInput = {
+      ...(dto.firstName !== undefined ? { firstName: dto.firstName } : {}),
+      ...(dto.lastName !== undefined ? { lastName: dto.lastName } : {}),
+      ...(dto.phone !== undefined ? { phone: normalizePhone(dto.phone) } : {}),
+      ...(dto.email !== undefined ? { email: dto.email.trim().toLowerCase() } : {}),
+    };
+    return this.prisma.user.update({
+      where: { id },
+      data,
       select: PUBLIC_USER_FIELDS,
     });
   }
