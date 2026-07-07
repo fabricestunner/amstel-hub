@@ -39,13 +39,10 @@ export default function AuthLayout({
             />
           </Link>
 
-          <div className="mt-6 flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold tracking-tight text-white">
-              AMSTEL
-            </span>
-            <span className="text-3xl font-extrabold tracking-tight text-amstel-gold">
-              REWARDS
-            </span>
+          <div className="mt-6 max-w-[18rem]">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">
+              Loyal Friends of Amstel Rewards
+            </h1>
           </div>
 
           <div className="mt-8 space-y-1 leading-snug">
@@ -89,14 +86,9 @@ export default function AuthLayout({
               priority
             />
           </Link>
-          <div className="mt-3 flex items-baseline gap-1.5">
-            <span className="text-xl font-extrabold tracking-tight text-amstel-red">
-              AMSTEL
-            </span>
-            <span className="text-xl font-extrabold tracking-tight text-amstel-gold">
-              REWARDS
-            </span>
-          </div>
+          <h1 className="mt-3 max-w-[16rem] text-center text-xl font-extrabold tracking-tight text-amstel-red">
+            Loyal Friends of Amstel Rewards
+          </h1>
         </div>
 
         <div className="w-full max-w-md">
