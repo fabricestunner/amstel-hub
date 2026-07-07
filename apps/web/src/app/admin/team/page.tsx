@@ -102,7 +102,7 @@ const createSchema = z.object({
   phone: z.string().min(8, 'Enter a valid phone number'),
   email: z.string().email('Enter a valid email').optional().or(z.literal('')),
   role: z.string().min(1, 'Select a role'),
-  password: z.string().min(8, 'At least 8 characters'),
+  password: z.string().min(6, 'At least 6 characters'),
   outletId: z.string().optional(),
 });
 type CreateForm = z.infer<typeof createSchema>;
@@ -477,7 +477,7 @@ export default function AdminTeamPage() {
                 <Input
                   id="password"
                   type="text"
-                  placeholder="Min. 8 characters"
+                  placeholder="Min. 6 characters"
                   {...register('password')}
                 />
                 {errors.password && (

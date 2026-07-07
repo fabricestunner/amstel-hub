@@ -170,7 +170,7 @@ export default function AdminSettingsPage() {
                 id="newPassword"
                 type="password"
                 autoComplete="new-password"
-                placeholder="Min. 8 characters"
+                placeholder="Min. 6 characters"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
               />

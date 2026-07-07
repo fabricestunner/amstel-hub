@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { KeyRound, Loader2, Lock } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,15 +9,14 @@ import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
 import {
-  Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FieldError, PasswordInput } from '@/features/auth/form-fields';
 import { useResetPassword } from '@/features/auth/use-auth-mutations';
 
 const schema = z
@@ -42,57 +42,62 @@ function ResetPasswordForm() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Set a new password</CardTitle>
-        <CardDescription>Choose a strong password you&apos;ll remember.</CardDescription>
+    <>
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl font-bold tracking-tight">
+          Set a new password
+        </CardTitle>
+        <CardDescription>
+          Choose a strong password you&apos;ll remember.
+        </CardDescription>
       </CardHeader>
       <form
         onSubmit={handleSubmit((v) =>
           reset.mutate({ token, password: v.password }),
         )}
       >
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pb-4">
           <div className="space-y-2">
             <Label htmlFor="password">New password</Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
+              icon={KeyRound}
               autoComplete="new-password"
+              placeholder="Min. 6 characters"
+              autoFocus
               {...register('password')}
             />
-            {errors.password && (
-              <p className="text-sm text-destructive">
-                {errors.password.message}
-              </p>
-            )}
+            <FieldError message={errors.password?.message} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirm">Confirm password</Label>
-            <Input
+            <PasswordInput
               id="confirm"
-              type="password"
+              icon={Lock}
               autoComplete="new-password"
               {...register('confirm')}
             />
-            {errors.confirm && (
-              <p className="text-sm text-destructive">
-                {errors.confirm.message}
-              </p>
-            )}
+            <FieldError message={errors.confirm?.message} />
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="pt-2 pb-6">
           <Button
             type="submit"
-            className="w-full"
+            className="w-full bg-amstel-red text-white hover:bg-amstel-red-dark"
             disabled={reset.isPending || !token}
           >
-            {reset.isPending ? 'Updating…' : 'Update password'}
+            {reset.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Updating…
+              </>
+            ) : (
+              'Update password'
+            )}
           </Button>
         </CardFooter>
       </form>
-    </Card>
+    </>
   );
 }
 

@@ -32,9 +32,10 @@ export class CreateUserDto {
   @IsString()
   lastName!: string;
 
-  @ApiProperty({ description: 'Phone number (E.164, e.g. +250788123456)' })
+  @ApiPropertyOptional({ description: 'Phone number (E.164, e.g. +250788123456)' })
+  @IsOptional()
   @IsString()
-  phone!: string;
+  phone?: string;
 
   @ApiPropertyOptional({ description: 'Email address' })
   @IsOptional()
@@ -45,9 +46,9 @@ export class CreateUserDto {
   @IsEnum(STAFF_ROLES)
   role!: StaffRole;
 
-  @ApiProperty({ description: 'Initial password (min 8 characters)', minLength: 8 })
+  @ApiProperty({ description: 'Initial password (min 6 characters)', minLength: 6 })
   @IsString()
-  @MinLength(8)
+  @MinLength(6)
   password!: string;
 
   @ApiPropertyOptional({ description: 'Region to scope a REGIONAL_MANAGER to' })
@@ -98,9 +99,9 @@ export class ChangePasswordDto {
   @IsString()
   currentPassword!: string;
 
-  @ApiProperty({ description: 'New password (min 8 characters)', minLength: 8 })
+  @ApiProperty({ description: 'New password (min 6 characters)', minLength: 6 })
   @IsString()
-  @MinLength(8)
+  @MinLength(6)
   newPassword!: string;
 }
 

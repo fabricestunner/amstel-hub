@@ -1,8 +1,9 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, KeyRound, Loader2, Mail, Phone, User } from 'lucide-react';
+import { KeyRound, Loader2, Mail, Phone, User } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -16,27 +17,30 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  FieldError,
+  IconInput,
+  PasswordInput,
+} from '@/features/auth/form-fields';
 import { useRegister } from '@/features/auth/use-auth-mutations';
+import { toRwandaE164 } from '@/lib/phone';
 
-const schema = z.object({
+const phoneSchema = z.object({
   firstName: z.string().min(1, 'Required'),
   lastName: z.string().min(1, 'Required'),
-  email: z.string().email('Enter a valid email'),
-  phone: z.string().min(8, 'Enter a valid phone number'),
+  contact: z.string().min(8, 'Enter a valid phone number'),
   password: z.string().min(6, 'At least 6 characters'),
 });
 
-type FormValues = z.infer<typeof schema>;
+const emailSchema = z.object({
+  firstName: z.string().min(1, 'Required'),
+  lastName: z.string().min(1, 'Required'),
+  contact: z.string().email('Enter a valid email'),
+  password: z.string().min(6, 'At least 6 characters'),
+});
 
-function FieldError({ message }: { message?: string }) {
-  if (!message) return null;
-  return (
-    <p className="flex items-center gap-1.5 text-sm text-destructive">
-      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-      {message}
-    </p>
-  );
-}
+type PhoneValues = z.infer<typeof phoneSchema>;
+type EmailValues = z.infer<typeof emailSchema>;
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -48,11 +52,35 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function RegisterPage() {
   const registerMutation = useRegister();
+  const [method, setMethod] = useState<'phone' | 'email'>('phone');
+
+  const schema = method === 'phone' ? phoneSchema : emailSchema;
+  type FormValues = z.infer<typeof schema>;
+
   const {
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  function onSubmit(v: FormValues) {
+    const payload =
+      method === 'phone'
+        ? {
+            firstName: v.firstName,
+            lastName: v.lastName,
+            phone: toRwandaE164(v.contact),
+            password: v.password,
+          }
+        : {
+            firstName: v.firstName,
+            lastName: v.lastName,
+            email: v.contact,
+            password: v.password,
+          };
+    registerMutation.mutate(payload);
+  }
 
   return (
     <>
@@ -63,7 +91,7 @@ export default function RegisterPage() {
         </CardDescription>
       </CardHeader>
 
-      <form onSubmit={handleSubmit((v) => registerMutation.mutate(v))}>
+      <form onSubmit={handleSubmit(onSubmit)}>
         <CardContent className="space-y-5 pb-4">
           {/* Section 1: Personal details */}
           <div>
@@ -71,15 +99,14 @@ export default function RegisterPage() {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="firstName">First name</Label>
-                <div className="relative">
-                  <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="firstName"
-                    placeholder="Jean"
-                    className="pl-9 focus-visible:ring-amstel-red/40"
-                    {...register('firstName')}
-                  />
-                </div>
+                <IconInput
+                  id="firstName"
+                  icon={User}
+                  placeholder="Jean"
+                  autoComplete="given-name"
+                  autoFocus
+                  {...register('firstName')}
+                />
                 <FieldError message={errors.firstName?.message} />
               </div>
               <div className="space-y-2">
@@ -87,6 +114,7 @@ export default function RegisterPage() {
                 <Input
                   id="lastName"
                   placeholder="Dupont"
+                  autoComplete="family-name"
                   className="focus-visible:ring-amstel-red/40"
                   {...register('lastName')}
                 />
@@ -102,54 +130,78 @@ export default function RegisterPage() {
           <div className="space-y-4">
             <SectionLabel>Contact &amp; Security</SectionLabel>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  className="pl-9 focus-visible:ring-amstel-red/40"
-                  {...register('email')}
-                />
-              </div>
-              <FieldError message={errors.email?.message} />
+            {/* Toggle: Phone or Email */}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setMethod('phone'); setValue('contact', ''); }}
+                className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                  method === 'phone'
+                    ? 'border-amstel-red bg-amstel-red/5 text-amstel-red'
+                    : 'border-border text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <Phone className="mr-1.5 inline h-4 w-4" /> Phone
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMethod('email'); setValue('contact', ''); }}
+                className={`flex-1 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                  method === 'email'
+                    ? 'border-amstel-red bg-amstel-red/5 text-amstel-red'
+                    : 'border-border text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <Mail className="mr-1.5 inline h-4 w-4" /> Email
+              </button>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <div className="flex gap-2">
-                <div className="flex h-10 items-center rounded-md border bg-muted px-3">
-                  <span className="text-sm font-medium text-muted-foreground">🇷🇼 +250</span>
+            {method === 'phone' ? (
+              <div className="space-y-2">
+                <Label htmlFor="contact">Phone number</Label>
+                <div className="flex gap-2">
+                  <div className="flex h-10 items-center rounded-md border bg-muted px-3">
+                    <span className="text-sm font-medium text-muted-foreground">🇷🇼 +250</span>
+                  </div>
+                  <div className="flex-1">
+                    <IconInput
+                      id="contact"
+                      icon={Phone}
+                      type="tel"
+                      inputMode="tel"
+                      placeholder="7XX XXX XXX"
+                      autoComplete="tel-national"
+                      {...register('contact')}
+                    />
+                  </div>
                 </div>
-                <div className="relative flex-1">
-                  <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="7XX XXX XXX"
-                    className="pl-9 focus-visible:ring-amstel-red/40"
-                    {...register('phone')}
-                  />
-                </div>
+                <FieldError message={errors.contact?.message} />
               </div>
-              <FieldError message={errors.phone?.message} />
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="contact">Email</Label>
+                <IconInput
+                  id="contact"
+                  icon={Mail}
+                  type="email"
+                  inputMode="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  {...register('contact')}
+                />
+                <FieldError message={errors.contact?.message} />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="new-password"
-                  placeholder="Min. 6 characters"
-                  className="pl-9 focus-visible:ring-amstel-red/40"
-                  {...register('password')}
-                />
-              </div>
+              <PasswordInput
+                id="password"
+                icon={KeyRound}
+                autoComplete="new-password"
+                placeholder="Min. 6 characters"
+                {...register('password')}
+              />
               <FieldError message={errors.password?.message} />
             </div>
           </div>

@@ -11,9 +11,16 @@ import { queryKeys } from '@/lib/query-keys';
 export interface RegisterPayload {
   firstName: string;
   lastName: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   password: string;
+}
+
+export interface RegisterResponse {
+  id: string;
+  identifier: string;
+  channel: 'SMS' | 'EMAIL';
+  message: string;
 }
 
 export interface LoginPayload {
@@ -21,8 +28,8 @@ export interface LoginPayload {
   password: string;
 }
 
-export interface VerifyPhonePayload {
-  phone: string;
+export interface VerifyOtpPayload {
+  identifier: string;
   code: string;
 }
 
@@ -59,22 +66,23 @@ export function useRegister() {
   const router = useRouter();
   return useMutation({
     mutationFn: (payload: RegisterPayload) =>
-      api.post<{ phone?: string }>('/auth/register', payload),
-    onSuccess: (_data, vars) => {
-      toast.success('Account created. Verify your phone to continue.');
-      router.push(`/verify-otp?phone=${encodeURIComponent(vars.phone)}`);
+      api.post<RegisterResponse>('/auth/register', payload),
+    onSuccess: (data) => {
+      const via = data.channel === 'EMAIL' ? 'email' : 'SMS';
+      toast.success(`Account created. We sent a code via ${via}.`);
+      router.push(`/verify-otp?identifier=${encodeURIComponent(data.identifier)}`);
     },
     onError: (err: Error) => toast.error(err.message || 'Registration failed'),
   });
 }
 
-export function useVerifyPhone() {
+export function useVerifyOtp() {
   const finish = useFinishLogin();
   return useMutation({
-    mutationFn: (payload: VerifyPhonePayload) =>
-      api.post<AuthTokens>('/auth/verify-phone', payload),
+    mutationFn: (payload: VerifyOtpPayload) =>
+      api.post<AuthTokens>('/auth/verify', payload),
     onSuccess: async (tokens) => {
-      toast.success('Phone verified!');
+      toast.success('Verified!');
       await finish(tokens);
     },
     onError: (err: Error) => toast.error(err.message || 'Verification failed'),

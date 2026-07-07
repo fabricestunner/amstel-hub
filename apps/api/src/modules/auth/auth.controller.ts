@@ -35,9 +35,17 @@ export class AuthController {
 
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('verify')
+  verify(@Body() dto: VerifyOtpDto, @Req() req: Request) {
+    return this.auth.verifyOtp(dto, ctxOf(req));
+  }
+
+  // Backwards-compatible alias for older clients.
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('verify-phone')
   verifyPhone(@Body() dto: VerifyOtpDto, @Req() req: Request) {
-    return this.auth.verifyPhone(dto, ctxOf(req));
+    return this.auth.verifyOtp(dto, ctxOf(req));
   }
 
   @Public()

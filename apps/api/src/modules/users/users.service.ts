@@ -8,6 +8,7 @@ import * as argon2 from 'argon2';
 
 import { paginate } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { normalizePhone } from '../../common/utils/phone.util';
 import {
   ChangePasswordDto,
   CreateUserDto,
@@ -46,11 +47,13 @@ export class UsersService {
 
   /** Admin — create a staff user (manager, promoter). Customers self-register. */
   async create(dto: CreateUserDto) {
+    const phone = normalizePhone(dto.phone);
+    const email = dto.email?.trim().toLowerCase();
     const existing = await this.prisma.user.findFirst({
       where: {
         OR: [
-          { phone: dto.phone },
-          ...(dto.email ? [{ email: dto.email }] : []),
+          ...(phone ? [{ phone }] : []),
+          ...(email ? [{ email }] : []),
         ],
       },
       select: { id: true },
@@ -79,14 +82,14 @@ export class UsersService {
         data: {
           firstName: dto.firstName,
           lastName: dto.lastName,
-          phone: dto.phone,
-          email: dto.email,
+          phone,
+          email,
           role: dto.role,
           passwordHash,
           status: 'ACTIVE',
           // staff accounts are pre-verified by the admin who creates them
-          phoneVerified: true,
-          emailVerified: Boolean(dto.email),
+          phoneVerified: Boolean(phone),
+          emailVerified: Boolean(email),
           regionId: dto.regionId,
         },
         select: PUBLIC_USER_FIELDS,

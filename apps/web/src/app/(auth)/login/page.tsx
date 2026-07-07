@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AlertCircle, Loader2, Lock, Mail } from 'lucide-react';
+import { Loader2, Lock, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -14,13 +14,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  FieldError,
+  IconInput,
+  PasswordInput,
+} from '@/features/auth/form-fields';
 import { useLogin } from '@/features/auth/use-auth-mutations';
 
 const schema = z.object({
   identifier: z.string().min(3, 'Enter your email or phone'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
+  password: z.string().min(1, 'Enter your password'),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -46,22 +50,15 @@ export default function LoginPage() {
         <CardContent className="space-y-4 pb-4">
           <div className="space-y-2">
             <Label htmlFor="identifier">Email or phone</Label>
-            <div className="relative">
-              <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="identifier"
-                placeholder="you@example.com"
-                autoComplete="username"
-                className="pl-9 focus-visible:ring-amstel-red/40"
-                {...register('identifier')}
-              />
-            </div>
-            {errors.identifier && (
-              <p className="flex items-center gap-1.5 text-sm text-destructive">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                {errors.identifier.message}
-              </p>
-            )}
+            <IconInput
+              id="identifier"
+              icon={Mail}
+              placeholder="you@example.com"
+              autoComplete="username"
+              autoFocus
+              {...register('identifier')}
+            />
+            <FieldError message={errors.identifier?.message} />
           </div>
 
           <div className="space-y-2">
@@ -74,22 +71,13 @@ export default function LoginPage() {
                 Forgot password?
               </Link>
             </div>
-            <div className="relative">
-              <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                className="pl-9 focus-visible:ring-amstel-red/40"
-                {...register('password')}
-              />
-            </div>
-            {errors.password && (
-              <p className="flex items-center gap-1.5 text-sm text-destructive">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                {errors.password.message}
-              </p>
-            )}
+            <PasswordInput
+              id="password"
+              icon={Lock}
+              autoComplete="current-password"
+              {...register('password')}
+            />
+            <FieldError message={errors.password?.message} />
           </div>
         </CardContent>
 

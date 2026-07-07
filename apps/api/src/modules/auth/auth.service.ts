@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   UnauthorizedException,
@@ -6,6 +7,11 @@ import {
 import * as argon2 from 'argon2';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
+import {
+  isEmail,
+  normalizeIdentifier,
+  normalizePhone,
+} from '../../common/utils/phone.util';
 import {
   LoginDto,
   RegisterDto,
@@ -28,10 +34,27 @@ export class AuthService {
     private readonly otp: OtpService,
   ) {}
 
-  /** Self-service customer registration. Creates wallet + sends phone OTP. */
+  /**
+   * Self-service customer registration. Accepts a phone number OR email as the
+   * primary contact, creates a wallet, and sends a verification code over the
+   * matching channel (SMS for phone, email for email).
+   */
   async register(dto: RegisterDto) {
+    const phone = normalizePhone(dto.phone);
+    const email = dto.email?.trim().toLowerCase();
+    if (!phone && !email) {
+      throw new BadRequestException(
+        'Provide a phone number or email to sign up',
+      );
+    }
+
     const existing = await this.prisma.user.findFirst({
-      where: { OR: [{ phone: dto.phone }, ...(dto.email ? [{ email: dto.email }] : [])] },
+      where: {
+        OR: [
+          ...(phone ? [{ phone }] : []),
+          ...(email ? [{ email }] : []),
+        ],
+      },
     });
     if (existing) throw new ConflictException('Phone or email already registered');
 
@@ -46,8 +69,8 @@ export class AuthService {
 
     const user = await this.prisma.user.create({
       data: {
-        phone: dto.phone,
-        email: dto.email,
+        phone,
+        email,
         passwordHash: await argon2.hash(dto.password),
         firstName: dto.firstName,
         lastName: dto.lastName,
@@ -58,28 +81,48 @@ export class AuthService {
       },
     });
 
-    await this.otp.issue(user.id, 'PHONE_VERIFICATION');
-    return { id: user.id, phone: user.phone, message: 'OTP sent for verification' };
+    // Phone signups verify via SMS; email-only signups verify via email.
+    const channel = phone ? 'SMS' : 'EMAIL';
+    const purpose = phone ? 'PHONE_VERIFICATION' : 'EMAIL_VERIFICATION';
+    await this.otp.issue(user.id, purpose, channel);
+
+    return {
+      id: user.id,
+      identifier: phone ?? email,
+      channel,
+      message: `Verification code sent via ${channel === 'SMS' ? 'SMS' : 'email'}`,
+    };
   }
 
-  async verifyPhone(dto: VerifyOtpDto, ctx: RequestContext) {
-    const user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+  /** Verify a registration OTP delivered to a phone (SMS) or email. */
+  async verifyOtp(dto: VerifyOtpDto, ctx: RequestContext) {
+    const usingEmail = isEmail(dto.identifier);
+    const identifier = normalizeIdentifier(dto.identifier);
+
+    const user = await this.prisma.user.findFirst({
+      where: usingEmail ? { email: identifier } : { phone: identifier },
+    });
     if (!user) throw new UnauthorizedException('User not found');
 
-    await this.otp.verify(user.id, 'PHONE_VERIFICATION', dto.code);
+    const purpose = usingEmail ? 'EMAIL_VERIFICATION' : 'PHONE_VERIFICATION';
+    await this.otp.verify(user.id, purpose, dto.code);
+
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { phoneVerified: true, status: 'ACTIVE' },
+      data: usingEmail
+        ? { emailVerified: true, status: 'ACTIVE' }
+        : { phoneVerified: true, status: 'ACTIVE' },
     });
 
     return this.tokens.issuePair(user, ctx);
   }
 
   async login(dto: LoginDto, ctx: RequestContext) {
+    const identifier = normalizeIdentifier(dto.identifier);
     const user = await this.prisma.user.findFirst({
       where: {
         deletedAt: null,
-        OR: [{ phone: dto.identifier }, { email: dto.identifier }],
+        OR: [{ phone: identifier }, { email: identifier }],
       },
     });
 
@@ -123,17 +166,29 @@ export class AuthService {
     return { message: 'Logged out' };
   }
 
-  async forgotPassword(identifier: string) {
+  async forgotPassword(rawIdentifier: string) {
+    const usingEmail = isEmail(rawIdentifier);
+    const identifier = normalizeIdentifier(rawIdentifier);
     const user = await this.prisma.user.findFirst({
-      where: { OR: [{ phone: identifier }, { email: identifier }] },
+      where: usingEmail ? { email: identifier } : { phone: identifier },
     });
     // Always succeed to avoid user enumeration.
-    if (user) await this.otp.issue(user.id, 'PASSWORD_RESET');
+    if (user) {
+      await this.otp.issue(
+        user.id,
+        'PASSWORD_RESET',
+        usingEmail ? 'EMAIL' : 'SMS',
+      );
+    }
     return { message: 'If the account exists, a reset code has been sent' };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    const user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+    const usingEmail = isEmail(dto.identifier);
+    const identifier = normalizeIdentifier(dto.identifier);
+    const user = await this.prisma.user.findFirst({
+      where: usingEmail ? { email: identifier } : { phone: identifier },
+    });
     if (!user) throw new UnauthorizedException('User not found');
 
     await this.otp.verify(user.id, 'PASSWORD_RESET', dto.code);

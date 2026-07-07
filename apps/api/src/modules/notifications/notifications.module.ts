@@ -29,6 +29,6 @@ import { NOTIFICATION_QUEUE } from './notification.queue';
     SmsProvider,
     PushProvider,
   ],
-  exports: [NotificationsService],
+  exports: [NotificationsService, SmsProvider, EmailProvider],
 })
 export class NotificationsModule {}
