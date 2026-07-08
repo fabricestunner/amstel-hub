@@ -131,28 +131,51 @@ export class AuthService {
     const valid =
       user?.passwordHash && (await argon2.verify(user.passwordHash, dto.password));
 
-    // Always record the attempt for fraud/audit purposes.
-    await this.prisma.loginAudit.create({
-      data: {
-        userId: user?.id,
-        success: !!valid,
-        ipAddress: ctx.ipAddress,
-        userAgent: ctx.userAgent,
-        reason: valid ? undefined : 'invalid_credentials',
-      },
-    });
-
-    if (!user || !valid) throw new UnauthorizedException('Invalid credentials');
+    // Failed attempts are awaited — they feed brute-force / fraud detection.
+    if (!user || !valid) {
+      await this.prisma.loginAudit.create({
+        data: {
+          userId: user?.id,
+          success: false,
+          ipAddress: ctx.ipAddress,
+          userAgent: ctx.userAgent,
+          reason: 'invalid_credentials',
+        },
+      });
+      throw new UnauthorizedException('Invalid credentials');
+    }
     if (user.status !== 'ACTIVE') {
+      await this.prisma.loginAudit.create({
+        data: {
+          userId: user.id,
+          success: false,
+          ipAddress: ctx.ipAddress,
+          userAgent: ctx.userAgent,
+          reason: 'inactive',
+        },
+      });
       throw new UnauthorizedException('Account not active');
     }
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+    // Success path: issue tokens and record the audit concurrently instead of
+    // in series, and update lastLoginAt in the background — it isn't part of
+    // the response, so it shouldn't add a round-trip to login latency.
+    const [tokens] = await Promise.all([
+      this.tokens.issuePair(user, ctx),
+      this.prisma.loginAudit.create({
+        data: {
+          userId: user.id,
+          success: true,
+          ipAddress: ctx.ipAddress,
+          userAgent: ctx.userAgent,
+        },
+      }),
+    ]);
+    void this.prisma.user
+      .update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+      .catch(() => undefined);
 
-    return this.tokens.issuePair(user, ctx);
+    return tokens;
   }
 
   async refresh(refreshToken: string, ctx: RequestContext) {

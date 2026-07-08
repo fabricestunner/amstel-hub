@@ -92,19 +92,30 @@ export function useVerifyOtp() {
 }
 
 export function useForgotPassword() {
+  const router = useRouter();
   return useMutation({
     mutationFn: (identifier: string) =>
       api.post('/auth/forgot-password', { identifier }),
-    onSuccess: () =>
-      toast.success('If the account exists, a reset link has been sent.'),
+    // The backend sends a 6-digit code by SMS (phone) or email — take the user
+    // straight to the reset screen with their identifier prefilled.
+    onSuccess: (_data, identifier) => {
+      toast.success('If the account exists, a reset code has been sent.');
+      router.push(`/reset-password?identifier=${encodeURIComponent(identifier)}`);
+    },
     onError: (err: Error) => toast.error(err.message || 'Request failed'),
   });
+}
+
+export interface ResetPasswordPayload {
+  identifier: string;
+  code: string;
+  newPassword: string;
 }
 
 export function useResetPassword() {
   const router = useRouter();
   return useMutation({
-    mutationFn: (payload: { token: string; password: string }) =>
+    mutationFn: (payload: ResetPasswordPayload) =>
       api.post('/auth/reset-password', payload),
     onSuccess: () => {
       toast.success('Password updated. Please sign in.');

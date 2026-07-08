@@ -72,8 +72,10 @@ export class NotificationsService {
     };
 
     await this.queue.add('deliver', payload, {
-      attempts: 3,
+      attempts: 5,
       backoff: { type: 'exponential', delay: 5000 },
+      removeOnComplete: 1000,
+      removeOnFail: 5000,
     });
 
     this.logger.debug(

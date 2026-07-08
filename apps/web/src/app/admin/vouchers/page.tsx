@@ -68,8 +68,22 @@ export default function AdminVouchersPage() {
       {/* Print styles injected globally */}
       <style>{`
         @media print {
-          body > *:not(#voucher-print-root) { display: none !important; }
-          #voucher-print-root { display: block !important; }
+          /* Hide everything, then reveal only the voucher print root subtree.
+             Using visibility (not display) works no matter how deeply the print
+             root is nested inside the app layout. */
+          body * { visibility: hidden !important; }
+          #voucher-print-root,
+          #voucher-print-root * { visibility: visible !important; }
+          #voucher-print-root {
+            display: block !important;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            /* Force QR codes and brand colours to actually print. */
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
           .no-print { display: none !important; }
           .voucher-grid {
             display: grid !important;

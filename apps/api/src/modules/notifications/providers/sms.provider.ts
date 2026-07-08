@@ -22,6 +22,9 @@ export class SmsProvider {
       return;
     }
 
+    // Bound the outbound call so a slow/hung provider never ties up the worker.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
     try {
       const res = await fetch(MISTA_URL, {
         method: 'POST',
@@ -31,12 +34,25 @@ export class SmsProvider {
           'Accept': 'application/json',
         },
         body: JSON.stringify({ to, message, from: sms.senderId }),
+        signal: controller.signal,
       });
-      const body = await res.json() as { status: string; message?: string };
+      if (!res.ok) {
+        throw new Error(`Mista HTTP ${res.status}`);
+      }
+      const body = (await res.json()) as { status: string; message?: string };
       if (body.status === 'error') throw new Error(body.message ?? 'Mista error');
       this.logger.debug(`SMS sent via Mista → ${to}`);
     } catch (err) {
-      this.logger.warn(`SMS delivery failed → ${to}: ${(err as Error).message}`);
+      const reason =
+        (err as Error).name === 'AbortError'
+          ? 'timed out after 10s'
+          : (err as Error).message;
+      this.logger.warn(`SMS delivery failed → ${to}: ${reason}`);
+      // Re-throw so the BullMQ worker records FAILED and retries with backoff
+      // instead of silently marking the message delivered.
+      throw err;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 }
