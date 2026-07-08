@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { OutletStatus } from '@prisma/client';
+import { CodeStatus, CodeType, OutletStatus } from '@prisma/client';
 import {
   IsEnum,
   IsNumber,
@@ -79,4 +79,16 @@ export class RedemptionHistoryQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   userId?: string;
+}
+
+export class OutletVouchersQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ enum: CodeStatus })
+  @IsOptional()
+  @IsEnum(CodeStatus)
+  status?: CodeStatus;
+
+  @ApiPropertyOptional({ enum: CodeType })
+  @IsOptional()
+  @IsEnum(CodeType)
+  type?: CodeType;
 }

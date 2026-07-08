@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Coins, Gift, QrCode, Sparkles, TrendingUp, X } from 'lucide-react';
+import { CheckCircle2, Coins, Gift, QrCode, ScanLine, Sparkles, TrendingUp, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { useTransactions } from '@/features/loyalty/use-loyalty';
+import { QrScannerDialog } from '@/features/wallet/qr-scanner-dialog';
 import { type RedeemResult, useRedeemCode, useWallet } from '@/features/wallet/use-wallet';
 import { useMe } from '@/lib/auth';
 
@@ -33,18 +34,29 @@ export default function CustomerDashboard() {
   const redeem = useRedeemCode();
   const [code, setCode] = useState('');
   const [lastResult, setLastResult] = useState<RedeemResult | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
 
   const transactions = txns?.items ?? [];
 
-  function handleRedeem(e: React.FormEvent) {
-    e.preventDefault();
-    if (!code) return;
-    redeem.mutate(code, {
+  function submitCode(raw: string) {
+    const value = raw.trim().toUpperCase();
+    if (!value || redeem.isPending) return;
+    setCode(value);
+    redeem.mutate(value, {
       onSuccess: (res) => {
         setLastResult(res);
         setCode('');
       },
     });
+  }
+
+  function handleRedeem(e: React.FormEvent) {
+    e.preventDefault();
+    submitCode(code);
+  }
+
+  function handleScan(value: string) {
+    submitCode(value);
   }
 
   return (
@@ -128,13 +140,24 @@ export default function CustomerDashboard() {
                 autoComplete="off"
                 autoCapitalize="characters"
               />
-              <Button
-                type="submit"
-                disabled={!code || redeem.isPending}
-                className="shrink-0 bg-amstel-red text-white hover:bg-amstel-red-dark"
-              >
-                {redeem.isPending ? 'Redeeming…' : 'Redeem'}
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setScanOpen(true)}
+                  disabled={redeem.isPending}
+                  className="shrink-0"
+                >
+                  <ScanLine className="h-4 w-4" /> Scan
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={!code || redeem.isPending}
+                  className="shrink-0 bg-amstel-red text-white hover:bg-amstel-red-dark"
+                >
+                  {redeem.isPending ? 'Redeeming…' : 'Redeem'}
+                </Button>
+              </div>
             </form>
 
             {/* Error display */}
@@ -193,6 +216,12 @@ export default function CustomerDashboard() {
           />
         </CardContent>
       </Card>
+
+      <QrScannerDialog
+        open={scanOpen}
+        onOpenChange={setScanOpen}
+        onScan={handleScan}
+      />
     </div>
   );
 }

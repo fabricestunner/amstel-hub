@@ -11,6 +11,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   CreateOutletDto,
   ListOutletsDto,
+  OutletVouchersQueryDto,
   RedemptionHistoryQueryDto,
   UpdateOutletDto,
 } from './dto/outlet.dto';
@@ -131,8 +132,23 @@ export class OutletsService {
     if (!outlet) throw new NotFoundException('Outlet not found');
     this.assertReadScope(outlet.id, outlet.regionId, user);
 
-    const [codeRedemptions, tournamentEntries, recentCustomers] = await Promise.all([
-      this.prisma.codeRedemption.count({ where: { outletId: id } }),
+    const [
+      redemptionAgg,
+      customersRegistered,
+      tournamentEntries,
+      recentCustomers,
+    ] = await Promise.all([
+      // Points generated at this outlet is the sum of points from every code
+      // redeemed here — derived live so it always reflects real redemptions
+      // rather than a denormalized counter that is never updated.
+      this.prisma.codeRedemption.aggregate({
+        where: { outletId: id },
+        _sum: { points: true },
+        _count: { _all: true },
+      }),
+      this.prisma.user.count({
+        where: { registeredOutletId: id, deletedAt: null },
+      }),
       this.prisma.tournamentRegistration.count({
         where: { user: { registeredOutletId: id } },
       }),
@@ -156,8 +172,9 @@ export class OutletsService {
       nationalRank: outlet.nationalRank,
       regionalRank: outlet.regionalRank,
       campaignSales: Number(outlet.totalSales),
-      pointsGenerated: Number(outlet.totalPoints),
-      customersRegistered: outlet.customerCount,
+      pointsGenerated: redemptionAgg._sum.points ?? 0,
+      redemptionsCount: redemptionAgg._count._all,
+      customersRegistered,
       tournamentEntries,
       recentCustomers: recentCustomers.map((c) => ({
         id: c.id,
@@ -211,6 +228,91 @@ export class OutletsService {
     }));
 
     return paginate(mapped, total, query);
+  }
+
+  /**
+   * Paginated list of vouchers (loyalty codes) generated for this outlet, plus
+   * status counts. The raw code is never stored in plaintext, so we return a
+   * short reference derived from the id rather than the code itself.
+   */
+  async listVouchers(
+    id: string,
+    query: OutletVouchersQueryDto,
+    user: AuthenticatedUser,
+  ) {
+    const outlet = await this.prisma.outlet.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, regionId: true },
+    });
+    if (!outlet) throw new NotFoundException('Outlet not found');
+    this.assertReadScope(outlet.id, outlet.regionId, user);
+
+    const where: Prisma.LoyaltyCodeWhereInput = {
+      outletId: id,
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.type ? { type: query.type } : {}),
+    };
+
+    const [items, total, byStatus] = await Promise.all([
+      this.prisma.loyaltyCode.findMany({
+        where,
+        skip: query.skip,
+        take: query.limit,
+        orderBy: { createdAt: query.sortOrder },
+        select: {
+          id: true,
+          type: true,
+          status: true,
+          pointsValue: true,
+          batchId: true,
+          expiresAt: true,
+          createdAt: true,
+          campaign: { select: { name: true } },
+          redemption: {
+            select: {
+              createdAt: true,
+              user: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+      }),
+      this.prisma.loyaltyCode.count({ where }),
+      this.prisma.loyaltyCode.groupBy({
+        by: ['status'],
+        where: { outletId: id },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const counts = byStatus.reduce(
+      (acc, row) => {
+        acc.total += row._count._all;
+        if (row.status === 'REDEEMED') acc.redeemed += row._count._all;
+        if (row.status === 'ACTIVE') acc.active += row._count._all;
+        return acc;
+      },
+      { total: 0, active: 0, redeemed: 0 },
+    );
+
+    const mapped = items.map((c) => ({
+      id: c.id,
+      reference: `VCH-${c.id.slice(0, 8).toUpperCase()}`,
+      type: c.type,
+      status: c.status,
+      points: c.pointsValue,
+      campaign: c.campaign?.name,
+      batchId: c.batchId,
+      expiresAt: c.expiresAt?.toISOString() ?? null,
+      createdAt: c.createdAt.toISOString(),
+      redeemedAt: c.redemption?.createdAt.toISOString() ?? null,
+      redeemedBy: c.redemption
+        ? [c.redemption.user.firstName, c.redemption.user.lastName]
+            .filter(Boolean)
+            .join(' ') || null
+        : null,
+    }));
+
+    return { ...paginate(mapped, total, query), counts };
   }
 
   async listRegions() {

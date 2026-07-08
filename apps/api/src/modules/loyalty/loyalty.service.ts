@@ -63,6 +63,12 @@ export class LoyaltyService {
           include: { campaign: true },
         });
 
+        // Attribute the redemption to the outlet the customer scanned at, or —
+        // when none is supplied — fall back to the outlet the voucher itself was
+        // generated for. Without this, outlet-linked vouchers redeemed from the
+        // customer app record no outlet and never surface in outlet reporting.
+        const attributedOutletId = outlet?.id ?? code?.outletId ?? undefined;
+
         if (!code) throw new NotFoundException('Invalid code');
         if (code.status === 'REDEEMED') {
           throw new ConflictException('Code already redeemed');
@@ -90,7 +96,7 @@ export class LoyaltyService {
           data: {
             codeId: code.id,
             userId,
-            outletId: outlet?.id,
+            outletId: attributedOutletId,
             points: code.pointsValue,
             ipAddress: ctx.ipAddress,
             userAgent: ctx.userAgent,
@@ -112,7 +118,7 @@ export class LoyaltyService {
           data: {
             userId,
             campaignId: code.campaignId,
-            outletId: outlet?.id,
+            outletId: attributedOutletId,
             type: 'EARN',
             status: 'COMPLETED',
             points: code.pointsValue,

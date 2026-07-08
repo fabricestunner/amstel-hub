@@ -193,3 +193,40 @@ export function useOutletRedemptions(
     placeholderData: keepPreviousData,
   });
 }
+
+export interface OutletVoucher {
+  id: string;
+  reference: string;
+  type: string;
+  status: 'ACTIVE' | 'REDEEMED' | 'EXPIRED' | 'REVOKED' | string;
+  points: number;
+  campaign?: string;
+  batchId?: string | null;
+  expiresAt?: string | null;
+  createdAt: string;
+  redeemedAt?: string | null;
+  redeemedBy?: string | null;
+}
+
+export interface OutletVouchersResponse extends Paginated<OutletVoucher> {
+  counts: { total: number; active: number; redeemed: number };
+}
+
+export function useOutletVouchers(
+  id: string | undefined,
+  page = 1,
+  status = '',
+) {
+  return useQuery({
+    queryKey: ['outlets', id, 'vouchers', page, status],
+    queryFn: () => {
+      const qs = new URLSearchParams({ page: String(page), limit: '20' });
+      if (status && status !== 'all') qs.set('status', status.toUpperCase());
+      return api.get<OutletVouchersResponse>(
+        `/outlets/${id}/vouchers?${qs.toString()}`,
+      );
+    },
+    enabled: !!id,
+    placeholderData: keepPreviousData,
+  });
+}

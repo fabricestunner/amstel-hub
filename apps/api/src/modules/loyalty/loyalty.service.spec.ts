@@ -88,6 +88,49 @@ describe('LoyaltyService.redeemCode', () => {
     );
   });
 
+  it('attributes the redemption to the voucher own outlet when no outletCode is given', async () => {
+    const code = {
+      id: 'c1',
+      status: 'ACTIVE',
+      pointsValue: 20,
+      type: 'QR',
+      campaignId: 'camp1',
+      outletId: 'outlet-99',
+      expiresAt: null,
+      campaign: { status: 'ACTIVE', name: 'Summer Promo' },
+    };
+    const redemptionCreate = jest.fn().mockResolvedValue({ id: 'red-1' });
+    const txCreate = jest.fn().mockResolvedValue({});
+    const tx = {
+      loyaltyCode: {
+        findUnique: jest.fn().mockResolvedValue(code),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      codeRedemption: { create: redemptionCreate },
+      wallet: { update: jest.fn().mockResolvedValue({ availablePoints: 120n }) },
+      pointsTransaction: { create: txCreate },
+    };
+    const prisma = {
+      // No outletCode → outlet lookup is skipped (returns null).
+      outlet: { findUnique: jest.fn().mockResolvedValue(null) },
+      $transaction: jest.fn((cb: (t: typeof tx) => unknown) => cb(tx)),
+    } as unknown as PrismaService;
+
+    const service = new LoyaltyService(prisma, crypto, fraud, notifications);
+    await service.redeemCode('u1', dto, ctx);
+
+    expect(redemptionCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ outletId: 'outlet-99' }),
+      }),
+    );
+    expect(txCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ outletId: 'outlet-99' }),
+      }),
+    );
+  });
+
   it('blocks redemption (429) when fraud velocity is exceeded', async () => {
     const abusiveFraud = {
       checkRedemptionVelocity: jest.fn().mockResolvedValue(true),

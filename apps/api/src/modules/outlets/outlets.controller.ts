@@ -19,6 +19,7 @@ import { OutletsService } from './outlets.service';
 import {
   CreateOutletDto,
   ListOutletsDto,
+  OutletVouchersQueryDto,
   RedemptionHistoryQueryDto,
   UpdateOutletDto,
 } from './dto/outlet.dto';
@@ -73,6 +74,16 @@ export class OutletsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.outlets.redemptionHistory(id, query, user);
+  }
+
+  @Roles('SUPER_ADMIN', 'REGIONAL_MANAGER', 'OUTLET_MANAGER')
+  @Get(':id/vouchers')
+  vouchers(
+    @Param('id') id: string,
+    @Query() query: OutletVouchersQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.outlets.listVouchers(id, query, user);
   }
 
   @Roles('SUPER_ADMIN')
