@@ -1,6 +1,18 @@
 'use client';
 
-import { CheckCircle2, Coins, Gift, QrCode, ScanLine, Sparkles, TrendingUp, X } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  Coins,
+  Gift,
+  Loader2,
+  QrCode,
+  ScanLine,
+  Sparkles,
+  TrendingUp,
+  X,
+} from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -17,9 +29,18 @@ import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/ui/page-header';
 import { StatCard } from '@/components/ui/stat-card';
 import { useTransactions } from '@/features/loyalty/use-loyalty';
-import { QrScannerDialog } from '@/features/wallet/qr-scanner-dialog';
 import { type RedeemResult, useRedeemCode, useWallet } from '@/features/wallet/use-wallet';
 import { useMe } from '@/lib/auth';
+
+// Camera QR scanner pulls in the html5-qrcode library; load it only on the
+// client and split it out of the initial page bundle.
+const QrScannerDialog = dynamic(
+  () =>
+    import('@/features/wallet/qr-scanner-dialog').then(
+      (m) => m.QrScannerDialog,
+    ),
+  { ssr: false },
+);
 
 function formatDate(value?: string) {
   if (!value) return '—';
@@ -111,8 +132,10 @@ export default function CustomerDashboard() {
               </p>
             </div>
             <button
+              type="button"
               onClick={() => setLastResult(null)}
-              className="shrink-0 rounded p-0.5 hover:bg-emerald-500/20"
+              aria-label="Dismiss"
+              className="shrink-0 rounded p-0.5 hover:bg-emerald-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amstel-red/40"
             >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>

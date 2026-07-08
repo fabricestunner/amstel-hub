@@ -1,6 +1,6 @@
 'use client';
 
-import { FileSpreadsheet, FileText, Table2 } from 'lucide-react';
+import { FileSpreadsheet, FileText, Loader2, Table2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -27,8 +27,17 @@ const REPORTS = [
   },
 ];
 
+const FORMATS = [
+  { format: 'csv' as const, label: 'CSV', icon: Table2 },
+  { format: 'excel' as const, label: 'Excel', icon: FileSpreadsheet },
+  { format: 'pdf' as const, label: 'PDF', icon: FileText },
+];
+
 export default function OutletReportsPage() {
   const exportReport = useExportReport();
+  // React Query exposes the in-flight variables, so we can show a spinner on
+  // the exact button being generated while disabling the others.
+  const active = exportReport.isPending ? exportReport.variables : undefined;
 
   return (
     <div className="space-y-6">
@@ -45,36 +54,30 @@ export default function OutletReportsPage() {
             </CardHeader>
             <CardContent />
             <CardFooter className="gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={exportReport.isPending}
-                onClick={() =>
-                  exportReport.mutate({ type: r.type, format: 'csv' })
-                }
-              >
-                <Table2 className="h-4 w-4" /> CSV
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={exportReport.isPending}
-                onClick={() =>
-                  exportReport.mutate({ type: r.type, format: 'excel' })
-                }
-              >
-                <FileSpreadsheet className="h-4 w-4" /> Excel
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={exportReport.isPending}
-                onClick={() =>
-                  exportReport.mutate({ type: r.type, format: 'pdf' })
-                }
-              >
-                <FileText className="h-4 w-4" /> PDF
-              </Button>
+              {FORMATS.map(({ format, label, icon: Icon }) => {
+                const isThisLoading =
+                  active?.type === r.type && active?.format === format;
+                return (
+                  <Button
+                    key={format}
+                    variant="outline"
+                    size="sm"
+                    disabled={exportReport.isPending}
+                    aria-busy={isThisLoading}
+                    aria-label={`Export ${r.title} as ${label}`}
+                    onClick={() =>
+                      exportReport.mutate({ type: r.type, format })
+                    }
+                  >
+                    {isThisLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Icon className="h-4 w-4" aria-hidden />
+                    )}
+                    {label}
+                  </Button>
+                );
+              })}
             </CardFooter>
           </Card>
         ))}

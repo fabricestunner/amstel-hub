@@ -14,6 +14,8 @@ export interface RegisterPayload {
   email?: string;
   phone?: string;
   password: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER';
+  yearOfBirth: number;
 }
 
 export interface RegisterResponse {

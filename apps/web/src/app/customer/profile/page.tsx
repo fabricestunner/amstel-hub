@@ -62,7 +62,10 @@ export default function CustomerProfilePage() {
           ) : (
             <div className="flex items-center gap-4">
               <Avatar className="h-16 w-16">
-                <AvatarImage src={me?.avatarUrl} alt="avatar" />
+                <AvatarImage
+                  src={me?.avatarUrl}
+                  alt={`${fullName(me?.firstName, me?.lastName, me?.fullName)} profile photo`}
+                />
                 <AvatarFallback>
                   {fullName(me?.firstName, me?.lastName, me?.email)
                     .slice(0, 2)
@@ -107,12 +110,16 @@ export default function CustomerProfilePage() {
                   <Button
                     variant={enabled ? 'gold' : 'outline'}
                     size="sm"
+                    role="switch"
+                    aria-checked={enabled}
+                    aria-label={`${field.label} notifications`}
                     disabled={update.isPending}
                     onClick={() => toggle(field.key)}
+                    className="min-h-11 min-w-[72px]"
                   >
                     {enabled ? (
                       <>
-                        <Check className="h-4 w-4" /> On
+                        <Check className="h-4 w-4" aria-hidden="true" /> On
                       </>
                     ) : (
                       'Off'

@@ -45,6 +45,20 @@ export function useAnalyticsTrends(days = 30) {
   });
 }
 
+export interface AnalyticsDemographics {
+  gender: TrendPoint[];
+  age: TrendPoint[];
+  hours: TrendPoint[];
+}
+
+export function useAnalyticsDemographics() {
+  return useQuery({
+    queryKey: ['analytics', 'demographics'],
+    queryFn: () =>
+      api.get<AnalyticsDemographics>('/analytics/demographics'),
+  });
+}
+
 /** Placeholder report export — backend report endpoints are future work. */
 export function useExportReport() {
   return useMutation({

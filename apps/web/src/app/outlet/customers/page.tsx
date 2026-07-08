@@ -133,7 +133,7 @@ export default function OutletCustomersPage() {
                   key: 'points',
                   header: 'Points',
                   render: (r) => (
-                    <span className="font-medium text-emerald-600">
+                    <span className="font-medium text-emerald-600 dark:text-emerald-400">
                       +{r.points.toLocaleString()}
                     </span>
                   ),

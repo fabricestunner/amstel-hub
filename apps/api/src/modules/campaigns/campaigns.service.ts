@@ -113,7 +113,7 @@ export class CampaignsService {
         bannerUrl: dto.bannerUrl,
         startsAt,
         endsAt,
-        pointsPerCode: dto.pointsPerCode ?? 0,
+        pointsPerCode: dto.pointsPerCode ?? 1,
         pointsExpiryDays: dto.pointsExpiryDays,
         createdById,
       },

@@ -25,22 +25,40 @@ import {
 import { useRegister } from '@/features/auth/use-auth-mutations';
 import { toRwandaE164 } from '@/lib/phone';
 
-const phoneSchema = z.object({
+const CURRENT_YEAR = new Date().getFullYear();
+// Legal drinking age — customers must be 18+.
+const MAX_BIRTH_YEAR = CURRENT_YEAR - 18;
+const BIRTH_YEARS = Array.from({ length: 83 }, (_, i) => MAX_BIRTH_YEAR - i);
+
+const baseFields = {
   firstName: z.string().min(1, 'Required'),
   lastName: z.string().min(1, 'Required'),
-  contact: z.string().min(8, 'Enter a valid phone number'),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER'], {
+    message: 'Select your gender',
+  }),
+  yearOfBirth: z.coerce
+    .number({ message: 'Select your year of birth' })
+    .int()
+    .min(1900, 'Enter a valid year')
+    .max(MAX_BIRTH_YEAR, 'You must be at least 18 years old'),
   password: z.string().min(6, 'At least 6 characters'),
+};
+
+const phoneSchema = z.object({
+  ...baseFields,
+  contact: z.string().min(8, 'Enter a valid phone number'),
 });
 
 const emailSchema = z.object({
-  firstName: z.string().min(1, 'Required'),
-  lastName: z.string().min(1, 'Required'),
+  ...baseFields,
   contact: z.string().email('Enter a valid email'),
-  password: z.string().min(6, 'At least 6 characters'),
 });
 
 type PhoneValues = z.infer<typeof phoneSchema>;
 type EmailValues = z.infer<typeof emailSchema>;
+
+const selectClass =
+  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amstel-red/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -65,20 +83,17 @@ export default function RegisterPage() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
   function onSubmit(v: FormValues) {
+    const shared = {
+      firstName: v.firstName,
+      lastName: v.lastName,
+      gender: v.gender,
+      yearOfBirth: v.yearOfBirth,
+      password: v.password,
+    };
     const payload =
       method === 'phone'
-        ? {
-            firstName: v.firstName,
-            lastName: v.lastName,
-            phone: toRwandaE164(v.contact),
-            password: v.password,
-          }
-        : {
-            firstName: v.firstName,
-            lastName: v.lastName,
-            email: v.contact,
-            password: v.password,
-          };
+        ? { ...shared, phone: toRwandaE164(v.contact) }
+        : { ...shared, email: v.contact };
     registerMutation.mutate(payload);
   }
 
@@ -119,6 +134,45 @@ export default function RegisterPage() {
                   {...register('lastName')}
                 />
                 <FieldError message={errors.lastName?.message} />
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender</Label>
+                <select
+                  id="gender"
+                  defaultValue=""
+                  className={selectClass}
+                  {...register('gender')}
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  <option value="MALE">Male</option>
+                  <option value="FEMALE">Female</option>
+                  <option value="OTHER">Other</option>
+                </select>
+                <FieldError message={errors.gender?.message} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="yearOfBirth">Year of birth</Label>
+                <select
+                  id="yearOfBirth"
+                  defaultValue=""
+                  className={selectClass}
+                  {...register('yearOfBirth')}
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  {BIRTH_YEARS.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+                <FieldError message={errors.yearOfBirth?.message} />
               </div>
             </div>
           </div>

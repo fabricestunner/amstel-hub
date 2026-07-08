@@ -26,6 +26,12 @@ enum UserRole {
   CUSTOMER
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 enum UserStatus {
   PENDING // registered, phone/email not yet verified
   ACTIVE
@@ -201,6 +207,10 @@ model User {
   phoneVerified Boolean    @default(false)
   lastLoginAt   DateTime?
 
+  // demographics (collected at customer signup; used for analytics)
+  gender       Gender?
+  yearOfBirth  Int?
+
   // org scoping (nullable: customers have none)
   regionId String? @db.Uuid
   region   Region? @relation(fields: [regionId], references: [id])
@@ -227,6 +237,11 @@ model User {
   customersAtOutlet Outlet?               @relation("OutletCustomers", fields: [registeredOutletId], references: [id])
   registeredOutletId String?              @db.Uuid
 
+  // outlet a staff member (e.g. PROMOTER) is assigned to work at (many staff per outlet).
+  // Used to block promoters from redeeming vouchers at their own outlet.
+  assignedOutlet   Outlet? @relation("OutletStaff", fields: [assignedOutletId], references: [id])
+  assignedOutletId String? @db.Uuid
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime? // soft delete
@@ -234,6 +249,7 @@ model User {
   @@index([role, status])
   @@index([regionId])
   @@index([registeredOutletId])
+  @@index([assignedOutletId])
   @@index([deletedAt])
   @@map("users")
 }
@@ -395,6 +411,7 @@ model Outlet {
   regionalRank    Int?
 
   customers       User[]              @relation("OutletCustomers")
+  staff           User[]              @relation("OutletStaff")
   loyaltyCodes    LoyaltyCode[]
   codeRedemptions CodeRedemption[]
   pointsTxns      PointsTransaction[]

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -56,6 +57,13 @@ export class LoyaltyService {
         })
       : null;
 
+    // Promoters may redeem codes like a customer, but never a voucher tied to
+    // the outlet they are assigned to (anti self-dealing).
+    const redeemer = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, assignedOutletId: true },
+    });
+
     const result = await this.prisma.$transaction(
       async (tx) => {
         const code = await tx.loyaltyCode.findUnique({
@@ -68,6 +76,16 @@ export class LoyaltyService {
         // generated for. Without this, outlet-linked vouchers redeemed from the
         // customer app record no outlet and never surface in outlet reporting.
         const attributedOutletId = outlet?.id ?? code?.outletId ?? undefined;
+
+        if (
+          redeemer?.role === 'PROMOTER' &&
+          attributedOutletId &&
+          redeemer.assignedOutletId === attributedOutletId
+        ) {
+          throw new ForbiddenException(
+            'Promoters cannot redeem vouchers at their own outlet',
+          );
+        }
 
         if (!code) throw new NotFoundException('Invalid code');
         if (code.status === 'REDEEMED') {

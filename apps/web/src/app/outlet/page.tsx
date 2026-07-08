@@ -9,8 +9,8 @@ import {
   Trophy,
   UserPlus,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
 
-import { AreaChartCard } from '@/components/charts/area-chart-card';
 import {
   Card,
   CardContent,
@@ -20,9 +20,28 @@ import {
 import { DataTable } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui/stat-card';
 import { useOutletDashboard } from '@/features/outlets/use-outlets';
 import { useMe } from '@/lib/auth';
+
+// Charts pull in Recharts (a large client-only bundle). Load it lazily so the
+// dashboard shell and stat cards paint immediately.
+const AreaChartCard = dynamic(
+  () =>
+    import('@/components/charts/area-chart-card').then((m) => m.AreaChartCard),
+  {
+    ssr: false,
+    loading: () => (
+      <Card>
+        <div className="space-y-4 p-6">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-[280px] w-full" />
+        </div>
+      </Card>
+    ),
+  },
+);
 
 function formatDate(value?: string) {
   if (!value) return '—';
@@ -51,7 +70,7 @@ export default function OutletDashboardPage() {
   const stat = (v?: number) => (isLoading ? '—' : (v ?? 0).toLocaleString());
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title={data?.name ?? 'Outlet dashboard'}
         description="Your outlet's performance and recent activity."
@@ -125,6 +144,8 @@ export default function OutletDashboardPage() {
           <DataTable
             isLoading={isLoading}
             rows={data?.recentCustomers ?? []}
+            emptyTitle="No customers yet"
+            emptyDescription="Registered customers will appear here."
             columns={[
               { key: 'name', header: 'Name' },
               {

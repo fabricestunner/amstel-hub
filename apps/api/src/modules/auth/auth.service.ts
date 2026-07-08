@@ -74,6 +74,8 @@ export class AuthService {
         passwordHash: await argon2.hash(dto.password),
         firstName: dto.firstName,
         lastName: dto.lastName,
+        gender: dto.gender,
+        yearOfBirth: dto.yearOfBirth,
         role: 'CUSTOMER',
         status: 'PENDING',
         registeredOutletId,

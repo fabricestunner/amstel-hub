@@ -1,0 +1,19 @@
+{
+  "name": "Amstel Rewards",
+  "short_name": "Amstel",
+  "description": "Loyalty, Rewards & Tournament Management Platform. Earn points, redeem rewards, enter tournaments and climb the national leaderboard.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#C8102E",
+  "icons": [
+    {
+      "src": "/amstel-logo.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

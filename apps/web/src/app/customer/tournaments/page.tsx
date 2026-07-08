@@ -1,6 +1,7 @@
 'use client';
 
-import { CalendarDays, Trophy, Users } from 'lucide-react';
+import { AlertCircle, CalendarDays, Trophy, Users } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +17,6 @@ import {
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BracketView } from '@/features/tournaments/bracket-view';
 import {
   Tournament,
   useRegisterTournament,
@@ -25,6 +25,16 @@ import {
 } from '@/features/tournaments/use-tournaments';
 import { useWallet } from '@/features/wallet/use-wallet';
 
+// The bracket is only shown on demand; keep it out of the initial page bundle.
+const BracketView = dynamic(
+  () =>
+    import('@/features/tournaments/bracket-view').then((m) => m.BracketView),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-40 w-full" />,
+  },
+);
+
 function formatDate(value?: string) {
   if (!value) return 'TBD';
   const d = new Date(value);
@@ -32,7 +42,8 @@ function formatDate(value?: string) {
 }
 
 export default function CustomerTournamentsPage() {
-  const { data: tournaments, isLoading } = useTournaments();
+  const { data: tournaments, isLoading, isError, error, refetch } =
+    useTournaments();
   const { data: wallet } = useWallet();
   const register = useRegisterTournament();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -52,6 +63,26 @@ export default function CustomerTournamentsPage() {
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-48 w-full rounded-xl" />
           ))}
+        </div>
+      ) : isError ? (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <div className="space-y-2">
+            <p>
+              {(error as Error)?.message ??
+                'We could not load tournaments right now.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="font-medium underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
+            >
+              Try again
+            </button>
+          </div>
         </div>
       ) : !tournaments || tournaments.length === 0 ? (
         <EmptyState
@@ -89,17 +120,17 @@ export default function CustomerTournamentsPage() {
                 </CardHeader>
                 <CardContent className="space-y-2 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
-                    <CalendarDays className="h-4 w-4" />
+                    <CalendarDays className="h-4 w-4 shrink-0" aria-hidden="true" />
                     {formatDate(t.startDate)} – {formatDate(t.endDate)}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
+                    <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
                     {(t.participantCount ?? 0).toLocaleString()}
                     {t.maxParticipants ? ` / ${t.maxParticipants}` : ''} players
                   </div>
                   {entry > 0 && (
                     <div className="flex items-center gap-2">
-                      <Trophy className="h-4 w-4" />
+                      <Trophy className="h-4 w-4 shrink-0" aria-hidden="true" />
                       Entry: {entry.toLocaleString()} points
                     </div>
                   )}
@@ -118,13 +149,15 @@ export default function CustomerTournamentsPage() {
                   )}
                   <Button
                     variant="outline"
+                    aria-expanded={openId === t.id}
+                    aria-controls={`bracket-${t.id}`}
                     onClick={() => setOpenId(openId === t.id ? null : t.id)}
                   >
                     {openId === t.id ? 'Hide bracket' : 'View bracket'}
                   </Button>
                 </CardFooter>
                 {openId === t.id && (
-                  <CardContent>
+                  <CardContent id={`bracket-${t.id}`}>
                     {bracket.isLoading ? (
                       <Skeleton className="h-40 w-full" />
                     ) : (

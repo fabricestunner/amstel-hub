@@ -1,9 +1,8 @@
 'use client';
 
 import { Coins, Gift, TrendingDown, Users } from 'lucide-react';
+import dynamic from 'next/dynamic';
 
-import { AreaChartCard } from '@/components/charts/area-chart-card';
-import { BarChartCard } from '@/components/charts/bar-chart-card';
 import {
   Card,
   CardContent,
@@ -12,15 +11,40 @@ import {
 } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/data-table';
 import { PageHeader } from '@/components/ui/page-header';
+import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/ui/stat-card';
 import {
+  useAnalyticsDemographics,
   useAnalyticsOverview,
   useAnalyticsTrends,
 } from '@/features/analytics/use-analytics';
 
+/** Chart cards are heavy (Recharts) and client-only — lazy-load them with a
+ *  skeleton fallback so they don't block the initial dashboard render. */
+function ChartCardSkeleton() {
+  return (
+    <div className="rounded-xl border bg-card p-6">
+      <Skeleton className="mb-4 h-5 w-40" />
+      <Skeleton className="h-[280px] w-full" />
+    </div>
+  );
+}
+
+const AreaChartCard = dynamic(
+  () =>
+    import('@/components/charts/area-chart-card').then((m) => m.AreaChartCard),
+  { ssr: false, loading: () => <ChartCardSkeleton /> },
+);
+const BarChartCard = dynamic(
+  () =>
+    import('@/components/charts/bar-chart-card').then((m) => m.BarChartCard),
+  { ssr: false, loading: () => <ChartCardSkeleton /> },
+);
+
 export default function AdminOverviewPage() {
   const { data: overview, isLoading } = useAnalyticsOverview();
   const { data: trends } = useAnalyticsTrends(30);
+  const { data: demographics } = useAnalyticsDemographics();
 
   const stat = (v?: number) => (isLoading ? '—' : (v ?? 0).toLocaleString());
 
@@ -121,6 +145,31 @@ export default function AdminOverviewPage() {
             />
           </CardContent>
         </Card>
+      </div>
+
+      <div>
+        <h2 className="mb-1 text-lg font-semibold tracking-tight">
+          Demographics &amp; consumption behaviour
+        </h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Who is drinking Amstel, and when they redeem their points.
+        </p>
+        <div className="grid gap-6 lg:grid-cols-2">
+          <BarChartCard
+            title="Customers by gender"
+            data={demographics?.gender ?? []}
+          />
+          <BarChartCard
+            title="Customers by age group"
+            data={demographics?.age ?? []}
+          />
+        </div>
+        <div className="mt-6">
+          <BarChartCard
+            title="Redemptions by hour of day (local time)"
+            data={demographics?.hours ?? []}
+          />
+        </div>
       </div>
     </div>
   );

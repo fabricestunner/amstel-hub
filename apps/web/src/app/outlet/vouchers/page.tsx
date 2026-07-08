@@ -21,9 +21,13 @@ function formatDateTime(value?: string | null) {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString();
 }
 
-function statusVariant(status: string): 'success' | 'gold' | 'outline' {
+function statusVariant(
+  status: string,
+): 'success' | 'gold' | 'warning' | 'destructive' | 'outline' {
   if (status === 'REDEEMED') return 'gold';
   if (status === 'ACTIVE') return 'success';
+  if (status === 'EXPIRED') return 'warning';
+  if (status === 'REVOKED') return 'destructive';
   return 'outline';
 }
 

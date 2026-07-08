@@ -1,15 +1,23 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Gender } from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   IsEmail,
+  IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   Length,
   Matches,
+  Max,
+  Min,
   MinLength,
 } from 'class-validator';
 
 const PHONE_REGEX = /^\+?[1-9]\d{7,14}$/; // E.164-ish
+// Legal drinking age — customers must be 18+.
+const MAX_BIRTH_YEAR = new Date().getFullYear() - 18;
 
 export class RegisterDto {
   @ApiPropertyOptional({ example: '+250788123456' })
@@ -36,6 +44,17 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   lastName?: string;
+
+  @ApiProperty({ enum: Gender })
+  @IsEnum(Gender)
+  gender!: Gender;
+
+  @ApiProperty({ example: 1995, description: 'Year of birth (must be 18 or older)' })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1900)
+  @Max(MAX_BIRTH_YEAR, { message: 'You must be at least 18 years old to sign up' })
+  yearOfBirth!: number;
 
   @ApiPropertyOptional({ description: 'Outlet code the customer registered at' })
   @IsOptional()

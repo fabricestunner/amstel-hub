@@ -72,7 +72,9 @@ export class UsersService {
         select: { managerId: true },
       });
       if (!outlet) throw new NotFoundException('Outlet not found');
-      if (outlet.managerId) {
+      // Only a manager occupies the 1:1 manager slot; promoters (many per
+      // outlet) don't conflict on it.
+      if (dto.role === 'OUTLET_MANAGER' && outlet.managerId) {
         throw new BadRequestException('That outlet already has a manager');
       }
     }
@@ -81,6 +83,9 @@ export class UsersService {
 
     const isCustomer = dto.role === 'CUSTOMER';
     const status = isCustomer ? 'PENDING' : 'ACTIVE';
+    // A promoter is assigned to an outlet and can redeem codes like a customer
+    // (except at their own outlet), so they need a wallet and an outlet link.
+    const isPromoter = dto.role === 'PROMOTER';
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -96,6 +101,10 @@ export class UsersService {
           phoneVerified: !isCustomer && Boolean(phone),
           emailVerified: !isCustomer && Boolean(email),
           regionId: dto.regionId,
+          ...(isPromoter && dto.outletId
+            ? { assignedOutletId: dto.outletId }
+            : {}),
+          ...(isPromoter ? { wallet: { create: {} } } : {}),
         },
         select: PUBLIC_USER_FIELDS,
       });

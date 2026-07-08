@@ -146,7 +146,8 @@ async function main() {
       status: 'ACTIVE',
       startsAt: new Date('2026-06-01'),
       endsAt: new Date('2026-09-30'),
-      pointsPerCode: 20,
+      // 1 point per beer/code; a voucher reward costs 2 points (= 2 beers).
+      pointsPerCode: 1,
       pointsExpiryDays: 180,
       createdById: superAdmin.id,
     },
@@ -167,7 +168,7 @@ async function main() {
         type: i % 2 === 0 ? 'QR' : 'BOTTLE',
         codeHash: hash(raw),
         codeCipher: encrypt(raw),
-        pointsValue: 20,
+        pointsValue: 1,
         status: 'ACTIVE',
       },
     });
@@ -176,6 +177,8 @@ async function main() {
   // ── Rewards ─────────────────────────────────────────────────
   await prisma.reward.createMany({
     data: [
+      // Entry-level reward: 2 points (= 2 beers) buys 1 voucher.
+      { campaignId: campaign.id, name: 'Amstel Voucher', type: 'COUPON', pointsCost: 2, status: 'ACTIVE' },
       { campaignId: campaign.id, name: 'Tournament Entry', type: 'TOURNAMENT_ENTRY', pointsCost: 100, status: 'ACTIVE' },
       { campaignId: campaign.id, name: 'Branded T-Shirt', type: 'MERCHANDISE', pointsCost: 150, totalInventory: 500, remainingInventory: 500, status: 'ACTIVE' },
       { campaignId: campaign.id, name: 'Free Amstel (2)', type: 'FREE_DRINK', pointsCost: 80, status: 'ACTIVE' },

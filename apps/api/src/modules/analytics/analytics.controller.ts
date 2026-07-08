@@ -28,4 +28,9 @@ export class AnalyticsController {
   ) {
     return this.analytics.trends(query.days, user);
   }
+
+  @Get('demographics')
+  demographics(@CurrentUser() user: AuthenticatedUser) {
+    return this.analytics.demographics(user);
+  }
 }

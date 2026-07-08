@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { CryptoService } from '../../common/crypto/crypto.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -33,6 +37,12 @@ describe('LoyaltyService.redeemCode', () => {
     };
     return {
       outlet: { findUnique: jest.fn().mockResolvedValue(null) },
+      // Default redeemer: a plain customer with no assigned outlet.
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ role: 'CUSTOMER', assignedOutletId: null }),
+      },
       $transaction: jest.fn((cb: (t: typeof tx) => unknown) => cb(tx)),
     } as unknown as PrismaService;
   }
@@ -113,6 +123,11 @@ describe('LoyaltyService.redeemCode', () => {
     const prisma = {
       // No outletCode → outlet lookup is skipped (returns null).
       outlet: { findUnique: jest.fn().mockResolvedValue(null) },
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ role: 'CUSTOMER', assignedOutletId: null }),
+      },
       $transaction: jest.fn((cb: (t: typeof tx) => unknown) => cb(tx)),
     } as unknown as PrismaService;
 
@@ -129,6 +144,50 @@ describe('LoyaltyService.redeemCode', () => {
         data: expect.objectContaining({ outletId: 'outlet-99' }),
       }),
     );
+  });
+
+  it('forbids a promoter from redeeming a voucher at their own outlet', async () => {
+    const code = {
+      id: 'c1',
+      status: 'ACTIVE',
+      pointsValue: 20,
+      type: 'QR',
+      campaignId: 'camp1',
+      outletId: 'outlet-99',
+      expiresAt: null,
+      campaign: { status: 'ACTIVE', name: 'Summer Promo' },
+    };
+    const prisma = buildPrisma(code);
+    // Redeemer is a promoter assigned to the SAME outlet the voucher belongs to.
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      role: 'PROMOTER',
+      assignedOutletId: 'outlet-99',
+    });
+    const service = new LoyaltyService(prisma, crypto, fraud, notifications);
+    await expect(service.redeemCode('promo-1', dto, ctx)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('lets a promoter redeem a voucher from a different outlet', async () => {
+    const code = {
+      id: 'c1',
+      status: 'ACTIVE',
+      pointsValue: 20,
+      type: 'QR',
+      campaignId: 'camp1',
+      outletId: 'outlet-OTHER',
+      expiresAt: null,
+      campaign: { status: 'ACTIVE', name: 'Summer Promo' },
+    };
+    const prisma = buildPrisma(code);
+    (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+      role: 'PROMOTER',
+      assignedOutletId: 'outlet-99',
+    });
+    const service = new LoyaltyService(prisma, crypto, fraud, notifications);
+    const result = await service.redeemCode('promo-1', dto, ctx);
+    expect(result.pointsEarned).toBe(20);
   });
 
   it('blocks redemption (429) when fraud velocity is exceeded', async () => {

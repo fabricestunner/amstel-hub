@@ -1,6 +1,6 @@
 'use client';
 
-import { Gift } from 'lucide-react';
+import { AlertCircle, Gift } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -34,7 +34,13 @@ import { useWallet } from '@/features/wallet/use-wallet';
 
 export default function CustomerRewardsPage() {
   const [type, setType] = useState('all');
-  const { data: rewards, isLoading } = useRewards(type === 'all' ? undefined : type);
+  const {
+    data: rewards,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useRewards(type === 'all' ? undefined : type);
   const { data: wallet } = useWallet();
   const redeem = useRedeemReward();
   const [selected, setSelected] = useState<Reward | null>(null);
@@ -70,6 +76,26 @@ export default function CustomerRewardsPage() {
           {Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-56 w-full rounded-xl" />
           ))}
+        </div>
+      ) : isError ? (
+        <div
+          role="alert"
+          className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+        >
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+          <div className="space-y-2">
+            <p>
+              {(error as Error)?.message ??
+                'We could not load the rewards catalog.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="font-medium underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
+            >
+              Try again
+            </button>
+          </div>
         </div>
       ) : !rewards || rewards.length === 0 ? (
         <EmptyState

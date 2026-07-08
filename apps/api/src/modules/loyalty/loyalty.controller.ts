@@ -14,7 +14,7 @@ import { RedeemCodeDto } from './dto/loyalty.dto';
 export class LoyaltyController {
   constructor(private readonly loyalty: LoyaltyService) {}
 
-  @Roles('CUSTOMER')
+  @Roles('CUSTOMER', 'PROMOTER')
   @Throttle({ default: { limit: 20, ttl: 60_000 } }) // anti brute-force on codes
   @Post('redeem')
   redeem(
