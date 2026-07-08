@@ -9,6 +9,8 @@ export interface Wallet {
   availablePoints: number;
   redeemedPoints: number;
   lifetimePoints: number;
+  codesRedeemed?: number;
+  pointsFromCodes?: number;
 }
 
 export function useWallet() {

@@ -11,6 +11,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import {
   CreateOutletDto,
   ListOutletsDto,
+  RedemptionHistoryQueryDto,
   UpdateOutletDto,
 } from './dto/outlet.dto';
 
@@ -165,6 +166,51 @@ export class OutletsService {
         joinedAt: c.createdAt.toISOString(),
       })),
     };
+  }
+
+  /** Paginated history of every code a customer redeemed at this outlet. */
+  async redemptionHistory(
+    id: string,
+    query: RedemptionHistoryQueryDto,
+    user: AuthenticatedUser,
+  ) {
+    const outlet = await this.prisma.outlet.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, regionId: true },
+    });
+    if (!outlet) throw new NotFoundException('Outlet not found');
+    this.assertReadScope(outlet.id, outlet.regionId, user);
+
+    const where: Prisma.CodeRedemptionWhereInput = {
+      outletId: id,
+      ...(query.userId ? { userId: query.userId } : {}),
+    };
+
+    const [items, total] = await Promise.all([
+      this.prisma.codeRedemption.findMany({
+        where,
+        skip: query.skip,
+        take: query.limit,
+        orderBy: { createdAt: query.sortOrder },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, phone: true, email: true } },
+          code: { select: { type: true, campaign: { select: { name: true } } } },
+        },
+      }),
+      this.prisma.codeRedemption.count({ where }),
+    ]);
+
+    const mapped = items.map((r) => ({
+      id: r.id,
+      customerId: r.userId,
+      customerName: [r.user.firstName, r.user.lastName].filter(Boolean).join(' ') || r.user.email || r.user.phone,
+      codeType: r.code.type,
+      campaign: r.code.campaign?.name,
+      points: r.points,
+      redeemedAt: r.createdAt.toISOString(),
+    }));
+
+    return paginate(mapped, total, query);
   }
 
   async listRegions() {

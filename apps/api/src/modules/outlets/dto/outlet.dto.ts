@@ -73,3 +73,10 @@ export class ListOutletsDto extends PaginationQueryDto {
   @IsUUID()
   regionId?: string;
 }
+
+export class RedemptionHistoryQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ description: 'Filter to a single customer' })
+  @IsOptional()
+  @IsUUID()
+  userId?: string;
+}

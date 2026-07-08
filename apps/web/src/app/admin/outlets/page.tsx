@@ -267,7 +267,7 @@ export default function AdminOutletsPage() {
                           <DropdownMenuItem
                             disabled={updateOutlet.isPending}
                             onClick={() =>
-                              updateOutlet.mutate({ id: r.id, data: { status: 'active' } })
+                              updateOutlet.mutate({ id: r.id, data: { status: 'ACTIVE' } })
                             }
                           >
                             Activate
@@ -277,7 +277,7 @@ export default function AdminOutletsPage() {
                           <DropdownMenuItem
                             disabled={updateOutlet.isPending}
                             onClick={() =>
-                              updateOutlet.mutate({ id: r.id, data: { status: 'inactive' } })
+                              updateOutlet.mutate({ id: r.id, data: { status: 'INACTIVE' } })
                             }
                           >
                             Deactivate

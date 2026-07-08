@@ -169,12 +169,21 @@ export class LoyaltyService {
   }
 
   async getWallet(userId: string) {
-    const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+    const [wallet, codeAgg] = await Promise.all([
+      this.prisma.wallet.findUnique({ where: { userId } }),
+      this.prisma.codeRedemption.aggregate({
+        where: { userId },
+        _count: { _all: true },
+        _sum: { points: true },
+      }),
+    ]);
     if (!wallet) throw new NotFoundException('Wallet not found');
     return {
       availablePoints: Number(wallet.availablePoints),
       redeemedPoints: Number(wallet.redeemedPoints),
       lifetimePoints: Number(wallet.lifetimePoints),
+      codesRedeemed: codeAgg._count._all,
+      pointsFromCodes: codeAgg._sum.points ?? 0,
     };
   }
 

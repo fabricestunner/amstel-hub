@@ -133,8 +133,10 @@ export function useUpdateOutlet() {
       data,
     }: {
       id: string;
-      data: Partial<CreateOutletInput> & { status?: 'active' | 'inactive' };
-    }) => api.patch<Outlet>(`/outlets/${id}`, data),
+      data: Partial<CreateOutletInput> & {
+        status?: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+      };
+    }) => api.put<Outlet>(`/outlets/${id}`, data),
     onSuccess: () => {
       toast.success('Outlet updated');
       qc.invalidateQueries({ queryKey: ['outlets'] });
@@ -160,5 +162,34 @@ export function useOutletDashboard(id: string | undefined) {
     queryKey: queryKeys.outletDashboard(id ?? ''),
     queryFn: () => api.get<OutletDashboard>(`/outlets/${id}/dashboard`),
     enabled: !!id,
+  });
+}
+
+export interface OutletRedemption {
+  id: string;
+  customerId: string;
+  customerName?: string;
+  codeType?: string;
+  campaign?: string;
+  points: number;
+  redeemedAt: string;
+}
+
+export function useOutletRedemptions(
+  id: string | undefined,
+  page = 1,
+  userId?: string,
+) {
+  return useQuery({
+    queryKey: ['outlets', id, 'redemptions', page, userId ?? ''],
+    queryFn: () => {
+      const qs = new URLSearchParams({ page: String(page), limit: '20' });
+      if (userId) qs.set('userId', userId);
+      return api.get<Paginated<OutletRedemption>>(
+        `/outlets/${id}/redemptions?${qs.toString()}`,
+      );
+    },
+    enabled: !!id,
+    placeholderData: keepPreviousData,
   });
 }

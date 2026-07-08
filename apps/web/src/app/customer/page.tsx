@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, Coins, Gift, Sparkles, TrendingUp, X } from 'lucide-react';
+import { CheckCircle2, Coins, Gift, QrCode, Sparkles, TrendingUp, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +55,7 @@ export default function CustomerDashboard() {
       />
 
       {/* Points summary */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Available points"
           value={walletLoading ? '—' : (wallet?.availablePoints ?? 0).toLocaleString()}
@@ -63,7 +63,12 @@ export default function CustomerDashboard() {
           accent="gold"
         />
         <StatCard
-          title="Redeemed points"
+          title="Codes redeemed"
+          value={walletLoading ? '—' : (wallet?.codesRedeemed ?? 0).toLocaleString()}
+          icon={<QrCode className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Points spent on rewards"
           value={walletLoading ? '—' : (wallet?.redeemedPoints ?? 0).toLocaleString()}
           icon={<Gift className="h-5 w-5" />}
         />
