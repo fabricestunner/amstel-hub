@@ -84,7 +84,7 @@ export default function CustomerDashboard() {
     <div className="space-y-8">
       <PageHeader
         title={`Welcome${me?.firstName ? `, ${me.firstName}` : ''}`}
-        description="Redeem Amstel codes to earn points and unlock rewards."
+        description="Redeem Amstel codes to earn points and claim rewards."
       />
 
       {/* Points summary */}
@@ -155,8 +155,8 @@ export default function CustomerDashboard() {
               Redeem a code
             </CardTitle>
             <CardDescription>
-              Scan the QR or enter the code on your Amstel bottle, can or
-              voucher — points land instantly.
+              Scan the QR or type the code from your Amstel bottle, can or
+              voucher. Points land in your wallet straight away.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

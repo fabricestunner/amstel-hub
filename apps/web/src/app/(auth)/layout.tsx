@@ -3,9 +3,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 const BENEFITS = [
-  'Earn points on every Amstel purchase',
-  'Compete in national pool tournaments',
-  'Win exclusive prizes and merchandise',
+  'Earn a point for every two Amstels',
+  'Enter national pool tournaments',
+  'Win prizes and Amstel merch',
 ];
 
 export default function AuthLayout({
@@ -51,8 +51,8 @@ export default function AuthLayout({
           </div>
 
           <p className="mt-5 max-w-xs text-sm leading-relaxed text-white/75">
-            Rwanda&apos;s premier brewery loyalty program. Every purchase brings
-            you closer to the national crown.
+            The Amstel rewards program in Rwanda. Buy Amstel, earn points, win
+            free beer and prizes.
           </p>
 
           <div className="mt-10 w-full max-w-xs space-y-3 text-left">

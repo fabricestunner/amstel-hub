@@ -182,7 +182,7 @@ export default function AdminTeamPage() {
     <div className="space-y-6">
       <PageHeader
         title="Team"
-        description="Manage staff accounts — managers and promoters."
+        description="Manage staff accounts for managers and promoters."
         actions={
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4" /> Add member

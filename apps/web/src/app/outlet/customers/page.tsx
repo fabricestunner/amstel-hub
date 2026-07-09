@@ -252,7 +252,7 @@ export default function OutletCustomersPage() {
               </DialogTitle>
               <DialogDescription>
                 Onboard a walk-in customer to your outlet. Provide a phone number
-                or email — they sign in with it and the password you set here.
+                or email. They sign in with it and the password you set here.
               </DialogDescription>
             </DialogHeader>
 

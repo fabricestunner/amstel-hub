@@ -218,7 +218,7 @@ export default function AdminVouchersPage() {
               <div>
                 <h2 className="font-semibold">{campaignName}</h2>
                 <p className="text-sm text-muted-foreground">
-                  {vouchers.length} vouchers ready — click Print to get the sheet
+                  {vouchers.length} vouchers ready. Click Print to get the sheet.
                 </p>
               </div>
               <div className="flex gap-2">

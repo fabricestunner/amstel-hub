@@ -187,7 +187,7 @@ export default function CustomerRewardsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Rewards"
-        description="Spend your points on exclusive Amstel rewards and track what you've claimed."
+        description="Spend your points on Amstel rewards and track what you've claimed."
       />
 
       <Tabs defaultValue="available" className="space-y-6">
@@ -241,7 +241,7 @@ export default function CustomerRewardsPage() {
             <EmptyState
               icon={<Gift className="h-10 w-10" />}
               title="No rewards available"
-              description="Check back soon — new rewards are added regularly."
+              description="Check back soon. We add new rewards regularly."
             />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -22,7 +22,7 @@ export default function OfflinePage() {
         </h1>
         <p className="max-w-sm text-muted-foreground">
           We couldn&apos;t reach the Amstel Rewards servers. Check your
-          connection and try again — your points are safe.
+          connection and try again. Your points are safe.
         </p>
       </div>
       <Link

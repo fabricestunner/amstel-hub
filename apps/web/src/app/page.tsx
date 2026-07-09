@@ -1,7 +1,6 @@
 import {
   ArrowRight,
   Beer,
-  Check,
   Coins,
   Gift,
   QrCode,
@@ -28,27 +27,21 @@ const STEPS = [
   },
   {
     icon: Coins,
-    title: 'Earn points instantly',
-    desc: 'Each verified purchase adds a point to your wallet — one point for every Amstel — ready to spend whenever you like.',
+    title: 'Collect points',
+    desc: 'Every two Amstels you buy is one point in your wallet, ready to spend.',
   },
   {
     icon: Gift,
-    title: 'Redeem rewards',
-    desc: 'Spend points on vouchers, free drinks, merchandise and pool-tournament entries. Rewards start from just 2 points.',
+    title: 'Get free beer',
+    desc: 'Ten points gets you a free Amstel. Spend the rest on vouchers, merch and pool tournament entries.',
   },
 ] as const;
 
 const REWARDS = [
-  { icon: Ticket, name: 'Amstel Voucher', points: '2 pts', note: 'Just two beers' },
-  { icon: Beer, name: 'Free Amstel', points: '80 pts', note: 'On the house' },
-  { icon: Trophy, name: 'Tournament entry', points: '100 pts', note: 'Play for prizes' },
-  { icon: Shirt, name: 'Branded merch', points: '150 pts', note: 'Wear the crown' },
-] as const;
-
-const TRUST = [
-  'Free to join',
-  '1 point per Amstel',
-  'Redeem from 2 points',
+  { icon: Beer, name: 'Free Amstel', points: '10 pts', note: 'On the house' },
+  { icon: Ticket, name: 'Amstel voucher', points: 'In app', note: 'Money off your tab' },
+  { icon: Trophy, name: 'Tournament entry', points: 'In app', note: 'Play for prizes' },
+  { icon: Shirt, name: 'Branded merch', points: 'In app', note: 'Caps and shirts' },
 ] as const;
 
 export default function HomePage() {
@@ -144,8 +137,8 @@ export default function HomePage() {
             </h1>
 
             <p className="max-w-xl text-lg text-white/85">
-              Turn every Amstel into points, then spend them on vouchers, free
-              drinks and entries to nationwide pool tournaments.
+              Buy Amstel, collect points, and trade them for free beer,
+              vouchers and pool tournament entries.
             </p>
 
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
@@ -161,15 +154,6 @@ export default function HomePage() {
                 <Link href="/register">Join Friends of Amstel</Link>
               </Button>
             </div>
-
-            <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 pt-2 text-sm text-white/85">
-              {TRUST.map((t) => (
-                <li key={t} className="inline-flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-amstel-gold" strokeWidth={3} />
-                  {t}
-                </li>
-              ))}
-            </ul>
           </div>
         </section>
 
@@ -178,10 +162,10 @@ export default function HomePage() {
           <div className="container">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-                From a cold one to the winner&apos;s circle
+                How it works
               </h2>
               <p className="mt-3 text-muted-foreground">
-                Three simple steps — no receipts to keep, no forms to fill.
+                Three steps. No receipts, no forms.
               </p>
             </div>
 
@@ -217,11 +201,11 @@ export default function HomePage() {
         <section id="rewards" className="container py-16 md:py-20">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-              What your points unlock
+              What your points get you
             </h2>
             <p className="mt-3 text-muted-foreground">
-              Real rewards you can claim in the app — the more you sip, the more
-              you score.
+              Earn a point for every two Amstels. A free Amstel is 10 points,
+              and the full rewards list lives in the app.
             </p>
           </div>
 
@@ -272,11 +256,10 @@ export default function HomePage() {
 
           <div className="container relative z-10 flex flex-col items-center text-center">
             <h2 className="max-w-2xl text-3xl font-bold tracking-tight md:text-4xl">
-              Your next Amstel is worth more than a good time
+              Your next Amstel is worth free beer
             </h2>
             <p className="mt-3 max-w-lg text-white/85">
-              Create your free account in under a minute and start turning every
-              purchase into rewards.
+              Create a free account in under a minute and start earning today.
             </p>
             <div className="mt-6 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               <SmartRedeemButton className="bg-amstel-gold font-semibold text-neutral-900 shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]">

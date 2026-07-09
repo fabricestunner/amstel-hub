@@ -56,7 +56,7 @@ export default function CustomerHistoryPage() {
               totalPages={data?.meta?.totalPages ?? 1}
               onPageChange={setPage}
               emptyTitle="No transactions yet"
-              emptyDescription="Redeem a code to start earning points — your activity will appear here."
+              emptyDescription="Redeem a code to start earning points. Your activity will show up here."
               columns={[
                 {
                   key: 'description',

@@ -125,7 +125,7 @@ export function QrScannerDialog({
 
         {status === 'scanning' && (
           <p className="text-center text-xs text-muted-foreground">
-            Hold steady — the code is detected automatically.
+            Hold steady. The code is detected automatically.
           </p>
         )}
       </DialogContent>
