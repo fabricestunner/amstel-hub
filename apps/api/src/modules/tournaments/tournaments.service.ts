@@ -233,7 +233,8 @@ export class TournamentsService {
    * auto-advances byes when player count is not a full power of two.
    */
   async generateBracket(tournamentId: string) {
-    const tournament = await this.findById(tournamentId);
+    // Validate the tournament exists (throws if not) before seeding.
+    await this.findById(tournamentId);
 
     const existing = await this.prisma.tournamentMatch.count({
       where: { tournamentId },
@@ -254,7 +255,7 @@ export class TournamentsService {
     }
 
     const bracketSize = this.bracketSize(regs.length);
-    const players = regs.map((r: Prisma.TournamentRegistrationGetPayload<{}>) => r.userId);
+    const players = regs.map((r) => r.userId);
 
     // Rounds from first round (bracketSize) down to the final (2 slots).
     const sizes: number[] = [];
