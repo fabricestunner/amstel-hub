@@ -72,7 +72,7 @@ export function roleHome(role?: UserRole): string {
 
 /** True when we have some credential worth trying: an in-memory access token
  *  or a persisted refresh token. Without either, there is no session to restore. */
-function hasStoredSession(): boolean {
+export function hasStoredSession(): boolean {
   if (typeof window === 'undefined') return false;
   return getAccessToken() != null || getStoredRefreshToken() != null;
 }

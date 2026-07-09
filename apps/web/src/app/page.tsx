@@ -14,6 +14,7 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { SmartRedeemButton } from '@/components/smart-redeem-button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -96,7 +97,7 @@ export default function HomePage() {
               className="bg-amstel-red text-white transition-colors duration-200 hover:bg-amstel-red-dark"
             >
               <Link href="/register">
-                Create account <ArrowRight className="h-4 w-4" />
+                Join Friends of Amstel <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </div>
@@ -148,22 +149,16 @@ export default function HomePage() {
             </p>
 
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-              <Button
-                asChild
-                size="lg"
-                className="bg-amstel-gold font-semibold text-neutral-900 shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]"
-              >
-                <Link href="/register">
-                  Create free account <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+              <SmartRedeemButton className="bg-amstel-gold font-semibold text-neutral-900 shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]">
+                Redeem my points <ArrowRight className="h-4 w-4" />
+              </SmartRedeemButton>
               <Button
                 asChild
                 size="lg"
                 variant="outline"
                 className="border-white/40 bg-white/10 text-white transition-colors duration-200 hover:bg-white/20"
               >
-                <Link href="/login">Sign in</Link>
+                <Link href="/register">Join Friends of Amstel</Link>
               </Button>
             </div>
 
@@ -260,7 +255,7 @@ export default function HomePage() {
               className="bg-amstel-red text-white transition-colors duration-200 hover:bg-amstel-red-dark"
             >
               <Link href="/register">
-                Start earning points <ArrowRight className="h-4 w-4" />
+                Join Friends of Amstel <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
           </div>
@@ -284,22 +279,16 @@ export default function HomePage() {
               purchase into rewards.
             </p>
             <div className="mt-6 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-              <Button
-                asChild
-                size="lg"
-                className="bg-amstel-gold font-semibold text-neutral-900 shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]"
-              >
-                <Link href="/register">
-                  Create free account <ArrowRight className="h-4 w-4" />
-                </Link>
-              </Button>
+              <SmartRedeemButton className="bg-amstel-gold font-semibold text-neutral-900 shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]">
+                Redeem my points <ArrowRight className="h-4 w-4" />
+              </SmartRedeemButton>
               <Button
                 asChild
                 size="lg"
                 variant="outline"
                 className="border-white/40 bg-white/10 text-white transition-colors duration-200 hover:bg-white/20"
               >
-                <Link href="/login">I already have an account</Link>
+                <Link href="/register">Join Friends of Amstel</Link>
               </Button>
             </div>
           </div>
