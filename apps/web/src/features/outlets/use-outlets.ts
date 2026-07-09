@@ -157,6 +157,43 @@ export function useDeleteOutlet() {
   });
 }
 
+export interface RegisterOutletCustomerInput {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  password: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  yearOfBirth?: number;
+}
+
+export interface RegisteredCustomer {
+  id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
+  status: string;
+}
+
+/** Outlet manager registers a walk-in customer onto their own outlet. */
+export function useRegisterOutletCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: RegisterOutletCustomerInput) =>
+      api.post<RegisteredCustomer>('/users/outlet-customers', input),
+    onSuccess: () => {
+      toast.success('Customer registered');
+      qc.invalidateQueries({ queryKey: ['outlet-dashboard'] });
+      qc.invalidateQueries({ queryKey: ['outlets'] });
+      qc.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (err: Error) =>
+      toast.error(err.message || 'Could not register customer'),
+  });
+}
+
 export function useOutletDashboard(id: string | undefined) {
   return useQuery({
     queryKey: queryKeys.outletDashboard(id ?? ''),

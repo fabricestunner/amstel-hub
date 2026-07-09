@@ -56,9 +56,33 @@ export function useRedeemReward() {
       toast.success('Reward redeemed! Check History for status.');
       qc.invalidateQueries({ queryKey: queryKeys.wallet });
       qc.invalidateQueries({ queryKey: ['reward-redemptions'] });
+      qc.invalidateQueries({ queryKey: ['my-reward-redemptions'] });
       qc.invalidateQueries({ queryKey: ['transactions'] });
     },
     onError: (err: Error) => toast.error(err.message || 'Redemption failed'),
+  });
+}
+
+export interface MyRewardRedemption {
+  id: string;
+  status?: 'PENDING' | 'APPROVED' | 'FULFILLED' | 'REJECTED' | 'CANCELLED' | string;
+  pointsSpent?: number;
+  fulfillmentRef?: string | null;
+  createdAt?: string;
+  reward?: { id: string; name: string; type?: string };
+}
+
+/** The current customer's own claimed rewards, paginated. */
+export function useMyRewardRedemptions(page = 1) {
+  return useQuery({
+    queryKey: ['my-reward-redemptions', page] as const,
+    queryFn: () => {
+      const qs = new URLSearchParams({ page: String(page) });
+      return api.get<Paginated<MyRewardRedemption>>(
+        `/rewards/redemptions?${qs.toString()}`,
+      );
+    },
+    placeholderData: keepPreviousData,
   });
 }
 

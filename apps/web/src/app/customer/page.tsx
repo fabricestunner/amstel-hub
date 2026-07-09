@@ -142,14 +142,21 @@ export default function CustomerDashboard() {
           </div>
         )}
 
-        <Card className="mt-4">
+        <Card className="mt-4 overflow-hidden border-amstel-red/15 shadow-sm">
+          <div
+            aria-hidden
+            className="h-1.5 bg-gradient-to-r from-amstel-red via-amstel-red to-amstel-gold"
+          />
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amstel-gold" />
+            <CardTitle className="flex items-center gap-2.5 text-xl">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amstel-gold/15 text-amstel-gold">
+                <Sparkles className="h-5 w-5" />
+              </span>
               Redeem a code
             </CardTitle>
             <CardDescription>
-              Enter the unique code printed on your Amstel product or voucher.
+              Scan the QR or enter the code on your Amstel bottle, can or
+              voucher — points land instantly.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -158,10 +165,11 @@ export default function CustomerDashboard() {
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
                 placeholder="AMSTEL-XXXX-XXXX"
-                className="flex-1 font-mono text-base tracking-widest"
+                className="h-12 flex-1 font-mono text-lg tracking-widest focus-visible:ring-amstel-red/40"
                 disabled={redeem.isPending}
                 autoComplete="off"
                 autoCapitalize="characters"
+                aria-label="Redemption code"
               />
               <div className="flex gap-2">
                 <Button
@@ -169,24 +177,35 @@ export default function CustomerDashboard() {
                   variant="outline"
                   onClick={() => setScanOpen(true)}
                   disabled={redeem.isPending}
-                  className="shrink-0"
+                  className="h-12 shrink-0 border-amstel-red/30 text-amstel-red hover:bg-amstel-red/5 hover:text-amstel-red"
                 >
                   <ScanLine className="h-4 w-4" /> Scan
                 </Button>
                 <Button
                   type="submit"
                   disabled={!code || redeem.isPending}
-                  className="shrink-0 bg-amstel-red text-white hover:bg-amstel-red-dark"
+                  className="h-12 shrink-0 bg-amstel-red px-6 text-white hover:bg-amstel-red-dark"
                 >
-                  {redeem.isPending ? 'Redeeming…' : 'Redeem'}
+                  {redeem.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Redeeming…
+                    </>
+                  ) : (
+                    'Redeem'
+                  )}
                 </Button>
               </div>
             </form>
 
             {/* Error display */}
             {redeem.isError && (
-              <p className="text-sm text-destructive">
-                {(redeem.error as Error)?.message ?? 'Failed to redeem. Please try again.'}
+              <p
+                role="alert"
+                className="flex items-center gap-1.5 text-sm text-destructive"
+              >
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                {(redeem.error as Error)?.message ??
+                  'Failed to redeem. Please try again.'}
               </p>
             )}
 

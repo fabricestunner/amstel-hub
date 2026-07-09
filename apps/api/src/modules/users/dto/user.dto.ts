@@ -1,14 +1,17 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { UserRole, UserStatus } from '@prisma/client';
-import { Transform } from 'class-transformer';
+import { Gender, UserRole, UserStatus } from '@prisma/client';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   IsUrl,
   IsUUID,
+  Max,
+  Min,
   MinLength,
 } from 'class-validator';
 
@@ -61,6 +64,56 @@ export class CreateUserDto {
   @IsOptional()
   @IsUUID()
   outletId?: string;
+}
+
+// Legal drinking age — customers must be 18+.
+const MAX_CUSTOMER_BIRTH_YEAR = new Date().getFullYear() - 18;
+
+/**
+ * Outlet-manager walk-in registration. The outlet is taken from the
+ * authenticated manager, never from the request body.
+ */
+export class RegisterOutletCustomerDto {
+  @ApiProperty({ description: 'First name' })
+  @IsString()
+  firstName!: string;
+
+  @ApiProperty({ description: 'Last name' })
+  @IsString()
+  lastName!: string;
+
+  @ApiPropertyOptional({ description: 'Phone number (E.164, e.g. +250788123456)' })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ description: 'Email address' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiProperty({ description: 'Initial password (min 6 characters)', minLength: 6 })
+  @IsString()
+  @MinLength(6)
+  password!: string;
+
+  @ApiPropertyOptional({ enum: Gender, description: 'Customer gender' })
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender;
+
+  @ApiPropertyOptional({
+    example: 1995,
+    description: 'Year of birth (must be 18 or older)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1900)
+  @Max(MAX_CUSTOMER_BIRTH_YEAR, {
+    message: 'Customer must be at least 18 years old',
+  })
+  yearOfBirth?: number;
 }
 
 export class UpdateProfileDto {

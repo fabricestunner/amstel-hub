@@ -1,14 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { Workbook } from 'exceljs';
 
+import { AuthenticatedUser } from '../../common/decorators';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 /** Escape a value for RFC-4180 CSV (quote when it contains , " or newline). */
 function csvCell(value: unknown): string {
   if (value === null || value === undefined) return '';
   const s = String(value);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 function toCsv(headers: string[], rows: unknown[][]): string {
@@ -17,58 +21,75 @@ function toCsv(headers: string[], rows: unknown[][]): string {
   return lines.join('\r\n');
 }
 
+/** Admin report types → any of the platform-management roles. */
+const ADMIN_ROLES: AuthenticatedUser['role'][] = [
+  'SUPER_ADMIN',
+  'CAMPAIGN_MANAGER',
+  'REGIONAL_MANAGER',
+];
+
+const ADMIN_TYPES = ['loyalty', 'campaigns', 'rewards', 'outlets'] as const;
+const OUTLET_TYPES = ['outlet-sales', 'outlet-customers'] as const;
+
+type ReportType = (typeof ADMIN_TYPES)[number] | (typeof OUTLET_TYPES)[number];
+
 @Injectable()
 export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async customersCsv(): Promise<string> {
-    const users = await this.prisma.user.findMany({
-      where: { role: 'CUSTOMER', deletedAt: null },
-      include: { wallet: true },
-      orderBy: { createdAt: 'desc' },
-    });
-    return toCsv(
-      ['ID', 'First Name', 'Last Name', 'Phone', 'Email', 'Status', 'Lifetime Points', 'Joined'],
-      users.map((u: Prisma.UserGetPayload<{ include: { wallet: true } }>) => [
-        u.id,
-        u.firstName,
-        u.lastName,
-        u.phone,
-        u.email,
-        u.status,
-        Number(u.wallet?.lifetimePoints ?? 0),
-        u.createdAt.toISOString(),
-      ]),
-    );
+  /**
+   * Resolve a report `type` into a downloadable CSV string, enforcing that the
+   * requesting user's role (and outlet scope, for outlet reports) may read it.
+   */
+  async buildCsv(
+    type: string,
+    user: AuthenticatedUser,
+  ): Promise<{ filename: string; csv: string }> {
+    const isAdminType = (ADMIN_TYPES as readonly string[]).includes(type);
+    const isOutletType = (OUTLET_TYPES as readonly string[]).includes(type);
+
+    if (!isAdminType && !isOutletType) {
+      throw new NotFoundException(`Unknown report type "${type}"`);
+    }
+
+    if (isAdminType && !ADMIN_ROLES.includes(user.role)) {
+      throw new ForbiddenException('Not permitted to export this report');
+    }
+    if (isOutletType) {
+      if (user.role !== 'OUTLET_MANAGER') {
+        throw new ForbiddenException('Not permitted to export this report');
+      }
+      if (!user.outletId) {
+        throw new ForbiddenException('No outlet is assigned to your account');
+      }
+    }
+
+    const csv = await this.render(type as ReportType, user);
+    const date = new Date().toISOString().slice(0, 10);
+    return { filename: `${type}-${date}.csv`, csv };
   }
 
-  async outletsCsv(): Promise<string> {
-    const outlets = await this.prisma.outlet.findMany({
-      where: { deletedAt: null },
-      include: { region: true, province: true, district: true },
-      orderBy: { totalPoints: 'desc' },
-    });
-    return toCsv(
-      ['ID', 'Name', 'Code', 'Region', 'Province', 'District', 'Status', 'Customers', 'Total Points', 'Total Sales', 'National Rank'],
-      outlets.map((o: Prisma.OutletGetPayload<{ include: { region: true; province: true; district: true } }>) => [
-        o.id,
-        o.name,
-        o.code,
-        o.region?.name,
-        o.province?.name,
-        o.district?.name,
-        o.status,
-        o.customerCount,
-        Number(o.totalPoints),
-        o.totalSales.toString(),
-        o.nationalRank ?? '',
-      ]),
-    );
+  private render(type: ReportType, user: AuthenticatedUser): Promise<string> {
+    switch (type) {
+      case 'loyalty':
+        return this.loyaltyCsv();
+      case 'campaigns':
+        return this.campaignsCsv();
+      case 'rewards':
+        return this.rewardsCsv();
+      case 'outlets':
+        return this.outletsCsv();
+      case 'outlet-sales':
+        return this.outletSalesCsv(user.outletId!);
+      case 'outlet-customers':
+        return this.outletCustomersCsv(user.outletId!);
+    }
   }
 
-  async transactionsCsv(campaignId?: string): Promise<string> {
+  // ── Admin reports ─────────────────────────────────────────────────────────
+
+  private async loyaltyCsv(): Promise<string> {
     const txns = await this.prisma.pointsTransaction.findMany({
-      where: { ...(campaignId ? { campaignId } : {}) },
       include: {
         user: { select: { phone: true } },
         campaign: { select: { name: true } },
@@ -78,157 +99,231 @@ export class ReportsService {
       take: 50_000,
     });
     return toCsv(
-      ['ID', 'User', 'Type', 'Status', 'Points', 'Balance After', 'Campaign', 'Outlet', 'Date'],
-      txns.map((t: Prisma.PointsTransactionGetPayload<{ include: { user: { select: { phone: true } }; campaign: { select: { name: true } }; outlet: { select: { name: true } } } }>) => [
-        t.id,
-        t.user?.phone,
-        t.type,
-        t.status,
-        t.points,
-        Number(t.balanceAfter),
-        t.campaign?.name,
-        t.outlet?.name,
-        t.createdAt.toISOString(),
+      [
+        'ID',
+        'User',
+        'Type',
+        'Status',
+        'Points',
+        'Balance After',
+        'Campaign',
+        'Outlet',
+        'Date',
+      ],
+      txns.map(
+        (
+          t: Prisma.PointsTransactionGetPayload<{
+            include: {
+              user: { select: { phone: true } };
+              campaign: { select: { name: true } };
+              outlet: { select: { name: true } };
+            };
+          }>,
+        ) => [
+          t.id,
+          t.user?.phone,
+          t.type,
+          t.status,
+          t.points,
+          Number(t.balanceAfter),
+          t.campaign?.name,
+          t.outlet?.name,
+          t.createdAt.toISOString(),
+        ],
+      ),
+    );
+  }
+
+  private async campaignsCsv(): Promise<string> {
+    const campaigns = await this.prisma.campaign.findMany({
+      where: { deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Aggregate code counts per campaign/status in one pass (no N+1).
+    const codeGroups = await this.prisma.loyaltyCode.groupBy({
+      by: ['campaignId', 'status'],
+      _count: { _all: true },
+    });
+    const generated = new Map<string, number>();
+    const redeemed = new Map<string, number>();
+    for (const g of codeGroups) {
+      const count = g._count._all;
+      generated.set(g.campaignId, (generated.get(g.campaignId) ?? 0) + count);
+      if (g.status === 'REDEEMED') {
+        redeemed.set(g.campaignId, (redeemed.get(g.campaignId) ?? 0) + count);
+      }
+    }
+
+    return toCsv(
+      [
+        'ID',
+        'Name',
+        'Status',
+        'Starts',
+        'Ends',
+        'Points Per Code',
+        'Codes Generated',
+        'Codes Redeemed',
+      ],
+      campaigns.map((c) => [
+        c.id,
+        c.name,
+        c.status,
+        c.startsAt.toISOString(),
+        c.endsAt.toISOString(),
+        c.pointsPerCode,
+        generated.get(c.id) ?? 0,
+        redeemed.get(c.id) ?? 0,
       ]),
     );
   }
 
-  // ── Excel exports ────────────────────────────────────────────────────────
-
-  private styleHeaderRow(wb: Workbook, sheetName: string): void {
-    const ws = wb.getWorksheet(sheetName)!;
-    const headerRow = ws.getRow(1);
-    headerRow.eachCell((cell) => {
-      cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF59E0B' } };
-    });
-    headerRow.commit();
-  }
-
-  async customersXlsx(): Promise<Buffer> {
-    const users = await this.prisma.user.findMany({
-      where: { role: 'CUSTOMER', deletedAt: null },
-      include: { wallet: true },
+  private async rewardsCsv(): Promise<string> {
+    const redemptions = await this.prisma.rewardRedemption.findMany({
+      include: {
+        reward: { select: { name: true } },
+        user: { select: { phone: true } },
+      },
       orderBy: { createdAt: 'desc' },
+      take: 50_000,
     });
-
-    const wb = new Workbook();
-    const ws = wb.addWorksheet('Customers');
-
-    ws.columns = [
-      { header: 'ID', key: 'id', width: 20 },
-      { header: 'First Name', key: 'firstName', width: 20 },
-      { header: 'Last Name', key: 'lastName', width: 20 },
-      { header: 'Phone', key: 'phone', width: 20 },
-      { header: 'Email', key: 'email', width: 20 },
-      { header: 'Status', key: 'status', width: 20 },
-      { header: 'Lifetime Points', key: 'lifetimePoints', width: 20 },
-      { header: 'Joined', key: 'joined', width: 20 },
-    ];
-
-    for (const u of users as Prisma.UserGetPayload<{ include: { wallet: true } }>[]) {
-      ws.addRow({
-        id: u.id,
-        firstName: u.firstName,
-        lastName: u.lastName,
-        phone: u.phone,
-        email: u.email,
-        status: u.status,
-        lifetimePoints: Number(u.wallet?.lifetimePoints ?? 0),
-        joined: u.createdAt.toISOString(),
-      });
-    }
-
-    this.styleHeaderRow(wb, 'Customers');
-    return Buffer.from(await wb.xlsx.writeBuffer());
+    return toCsv(
+      [
+        'ID',
+        'Reward',
+        'Customer',
+        'Status',
+        'Points Spent',
+        'Fulfillment Ref',
+        'Requested',
+        'Fulfilled At',
+      ],
+      redemptions.map(
+        (
+          r: Prisma.RewardRedemptionGetPayload<{
+            include: {
+              reward: { select: { name: true } };
+              user: { select: { phone: true } };
+            };
+          }>,
+        ) => [
+          r.id,
+          r.reward?.name,
+          r.user?.phone,
+          r.status,
+          r.pointsSpent,
+          r.fulfillmentRef,
+          r.createdAt.toISOString(),
+          r.fulfilledAt?.toISOString(),
+        ],
+      ),
+    );
   }
 
-  async outletsXlsx(): Promise<Buffer> {
+  private async outletsCsv(): Promise<string> {
     const outlets = await this.prisma.outlet.findMany({
       where: { deletedAt: null },
       include: { region: true, province: true, district: true },
       orderBy: { totalPoints: 'desc' },
     });
-
-    const wb = new Workbook();
-    const ws = wb.addWorksheet('Outlets');
-
-    ws.columns = [
-      { header: 'ID', key: 'id', width: 20 },
-      { header: 'Name', key: 'name', width: 20 },
-      { header: 'Code', key: 'code', width: 20 },
-      { header: 'Region', key: 'region', width: 20 },
-      { header: 'Province', key: 'province', width: 20 },
-      { header: 'District', key: 'district', width: 20 },
-      { header: 'Status', key: 'status', width: 20 },
-      { header: 'Customers', key: 'customers', width: 20 },
-      { header: 'Total Points', key: 'totalPoints', width: 20 },
-      { header: 'Total Sales', key: 'totalSales', width: 20 },
-      { header: 'National Rank', key: 'nationalRank', width: 20 },
-    ];
-
-    for (const o of outlets as Prisma.OutletGetPayload<{ include: { region: true; province: true; district: true } }>[]) {
-      ws.addRow({
-        id: o.id,
-        name: o.name,
-        code: o.code,
-        region: o.region?.name,
-        province: o.province?.name,
-        district: o.district?.name,
-        status: o.status,
-        customers: o.customerCount,
-        totalPoints: Number(o.totalPoints),
-        totalSales: o.totalSales.toString(),
-        nationalRank: o.nationalRank ?? '',
-      });
-    }
-
-    this.styleHeaderRow(wb, 'Outlets');
-    return Buffer.from(await wb.xlsx.writeBuffer());
+    return toCsv(
+      [
+        'ID',
+        'Name',
+        'Code',
+        'Region',
+        'Province',
+        'District',
+        'Status',
+        'Customers',
+        'Total Points',
+        'Total Sales',
+        'National Rank',
+      ],
+      outlets.map(
+        (
+          o: Prisma.OutletGetPayload<{
+            include: { region: true; province: true; district: true };
+          }>,
+        ) => [
+          o.id,
+          o.name,
+          o.code,
+          o.region?.name,
+          o.province?.name,
+          o.district?.name,
+          o.status,
+          o.customerCount,
+          Number(o.totalPoints),
+          o.totalSales.toString(),
+          o.nationalRank ?? '',
+        ],
+      ),
+    );
   }
 
-  async transactionsXlsx(campaignId?: string): Promise<Buffer> {
-    const txns = await this.prisma.pointsTransaction.findMany({
-      where: { ...(campaignId ? { campaignId } : {}) },
-      include: {
-        user: { select: { phone: true } },
-        campaign: { select: { name: true } },
-        outlet: { select: { name: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 50_000,
+  // ── Outlet-scoped reports ─────────────────────────────────────────────────
+
+  private async outletSalesCsv(outletId: string): Promise<string> {
+    // Points earned at this outlet, summarised per campaign.
+    const groups = await this.prisma.pointsTransaction.groupBy({
+      by: ['campaignId'],
+      where: { outletId, type: 'EARN' },
+      _count: { _all: true },
+      _sum: { points: true },
     });
 
-    const wb = new Workbook();
-    const ws = wb.addWorksheet('Transactions');
+    const campaignIds = groups
+      .map((g) => g.campaignId)
+      .filter((id): id is string => Boolean(id));
+    const campaigns = campaignIds.length
+      ? await this.prisma.campaign.findMany({
+          where: { id: { in: campaignIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const names = new Map(campaigns.map((c) => [c.id, c.name]));
 
-    ws.columns = [
-      { header: 'ID', key: 'id', width: 20 },
-      { header: 'User Phone', key: 'userPhone', width: 20 },
-      { header: 'Type', key: 'type', width: 20 },
-      { header: 'Status', key: 'status', width: 20 },
-      { header: 'Points', key: 'points', width: 20 },
-      { header: 'Balance After', key: 'balanceAfter', width: 20 },
-      { header: 'Campaign', key: 'campaign', width: 20 },
-      { header: 'Outlet', key: 'outlet', width: 20 },
-      { header: 'Date', key: 'date', width: 20 },
-    ];
+    return toCsv(
+      ['Campaign', 'Redemptions', 'Points Generated'],
+      groups.map((g) => [
+        g.campaignId ? (names.get(g.campaignId) ?? g.campaignId) : 'Unattributed',
+        g._count._all,
+        g._sum.points ?? 0,
+      ]),
+    );
+  }
 
-    for (const t of txns as Prisma.PointsTransactionGetPayload<{ include: { user: { select: { phone: true } }; campaign: { select: { name: true } }; outlet: { select: { name: true } } } }>[]) {
-      ws.addRow({
-        id: t.id,
-        userPhone: t.user?.phone,
-        type: t.type,
-        status: t.status,
-        points: t.points,
-        balanceAfter: Number(t.balanceAfter),
-        campaign: t.campaign?.name,
-        outlet: t.outlet?.name,
-        date: t.createdAt.toISOString(),
-      });
-    }
-
-    this.styleHeaderRow(wb, 'Transactions');
-    return Buffer.from(await wb.xlsx.writeBuffer());
+  private async outletCustomersCsv(outletId: string): Promise<string> {
+    const users = await this.prisma.user.findMany({
+      where: { role: 'CUSTOMER', deletedAt: null, registeredOutletId: outletId },
+      include: { wallet: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    return toCsv(
+      [
+        'ID',
+        'First Name',
+        'Last Name',
+        'Phone',
+        'Email',
+        'Status',
+        'Lifetime Points',
+        'Joined',
+      ],
+      users.map(
+        (u: Prisma.UserGetPayload<{ include: { wallet: true } }>) => [
+          u.id,
+          u.firstName,
+          u.lastName,
+          u.phone,
+          u.email,
+          u.status,
+          Number(u.wallet?.lifetimePoints ?? 0),
+          u.createdAt.toISOString(),
+        ],
+      ),
+    );
   }
 }

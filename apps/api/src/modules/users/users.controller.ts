@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -19,6 +20,7 @@ import {
   ChangePasswordDto,
   CreateUserDto,
   ListUsersQueryDto,
+  RegisterOutletCustomerDto,
   UpdateProfileDto,
   UpdateUserDto,
   UpdateUserRoleDto,
@@ -74,6 +76,21 @@ export class UsersController {
   @Post()
   create(@Body() dto: CreateUserDto) {
     return this.users.create(dto);
+  }
+
+  /** Outlet manager — register a walk-in customer onto their own outlet. */
+  @Roles('OUTLET_MANAGER', 'SUPER_ADMIN')
+  @Post('outlet-customers')
+  registerOutletCustomer(
+    @CurrentUser() current: AuthenticatedUser,
+    @Body() dto: RegisterOutletCustomerDto,
+  ) {
+    if (!current.outletId) {
+      throw new BadRequestException(
+        'Your account is not linked to an outlet',
+      );
+    }
+    return this.users.registerOutletCustomer(current.outletId, dto);
   }
 
   @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')

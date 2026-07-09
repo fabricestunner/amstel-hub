@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-import { api, setAccessToken } from '@/lib/api-client';
+import { api, getAccessToken, setAccessToken } from '@/lib/api-client';
 import { queryKeys } from '@/lib/query-keys';
 
 const REFRESH_TOKEN_KEY = 'refreshToken';
@@ -70,12 +70,21 @@ export function roleHome(role?: UserRole): string {
   }
 }
 
+/** True when we have some credential worth trying: an in-memory access token
+ *  or a persisted refresh token. Without either, there is no session to restore. */
+function hasStoredSession(): boolean {
+  if (typeof window === 'undefined') return false;
+  return getAccessToken() != null || getStoredRefreshToken() != null;
+}
+
 /** Fetch the current user. Skip the round-trip entirely when no token is stored
- *  so unauthenticated pages redirect immediately instead of waiting for a 401. */
+ *  so unauthenticated pages redirect immediately instead of waiting for a 401
+ *  (or, worse, a cold-starting backend). */
 export function useMe() {
   return useQuery({
     queryKey: queryKeys.me,
     queryFn: () => api.get<AuthUser>('/users/me'),
+    enabled: hasStoredSession(),
     retry: false,
     staleTime: 60_000,
   });

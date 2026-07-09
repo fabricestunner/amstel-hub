@@ -14,6 +14,7 @@ import {
   ChangePasswordDto,
   CreateUserDto,
   ListUsersQueryDto,
+  RegisterOutletCustomerDto,
   UpdateProfileDto,
   UpdateUserDto,
   UpdateUserRoleDto,
@@ -118,6 +119,59 @@ export class UsersService {
       }
 
       return user;
+    });
+  }
+
+  /**
+   * Outlet manager — register a walk-in CUSTOMER onto their OWN outlet.
+   * The outlet is taken from the authenticated manager (`outletId`); it is
+   * never accepted from the request. Because a staffer onboards the customer in
+   * person, the account is created ACTIVE with its contact channels pre-verified.
+   */
+  async registerOutletCustomer(outletId: string, dto: RegisterOutletCustomerDto) {
+    const phone = normalizePhone(dto.phone);
+    const email = dto.email?.trim().toLowerCase();
+    if (!phone && !email) {
+      throw new BadRequestException(
+        'Provide a phone number or email for the customer',
+      );
+    }
+
+    const existing = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          ...(phone ? [{ phone }] : []),
+          ...(email ? [{ email }] : []),
+        ],
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        'A user with this phone or email already exists',
+      );
+    }
+
+    const passwordHash = await argon2.hash(dto.password);
+
+    return this.prisma.user.create({
+      data: {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        phone: phone || null,
+        email: email || null,
+        gender: dto.gender,
+        yearOfBirth: dto.yearOfBirth,
+        role: 'CUSTOMER',
+        passwordHash,
+        status: 'ACTIVE',
+        // Onboarded in person by outlet staff, so their contact is pre-verified.
+        phoneVerified: Boolean(phone),
+        emailVerified: Boolean(email),
+        registeredOutletId: outletId,
+        wallet: { create: {} },
+      },
+      select: PUBLIC_USER_FIELDS,
     });
   }
 

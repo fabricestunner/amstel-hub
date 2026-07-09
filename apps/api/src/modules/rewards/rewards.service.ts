@@ -222,6 +222,32 @@ export class RewardsService {
     );
   }
 
+  /** The current customer's own claimed rewards, paginated. */
+  async listMyRedemptions(userId: string, query: ListRedemptionsDto) {
+    const where: Prisma.RewardRedemptionWhereInput = {
+      userId,
+      ...(query.status ? { status: query.status } : {}),
+    };
+    const [items, total] = await Promise.all([
+      this.prisma.rewardRedemption.findMany({
+        where,
+        skip: query.skip,
+        take: query.limit,
+        orderBy: { createdAt: query.sortOrder },
+        select: {
+          id: true,
+          status: true,
+          pointsSpent: true,
+          fulfillmentRef: true,
+          createdAt: true,
+          reward: { select: { id: true, name: true, type: true } },
+        },
+      }),
+      this.prisma.rewardRedemption.count({ where }),
+    ]);
+    return paginate(items, total, query);
+  }
+
   async listRedemptions(query: ListRedemptionsDto) {
     const where: Prisma.RewardRedemptionWhereInput = {
       ...(query.status ? { status: query.status } : {}),

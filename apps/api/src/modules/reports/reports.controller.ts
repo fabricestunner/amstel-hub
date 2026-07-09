@@ -1,66 +1,37 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
+import { Controller, Get, Param, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
-import { Roles } from '../../common/decorators';
+import {
+  AuthenticatedUser,
+  CurrentUser,
+  Roles,
+} from '../../common/decorators';
 import { ReportsService } from './reports.service';
 
 @ApiTags('reports')
 @ApiBearerAuth()
-@Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
+// All report-capable roles are admitted here; the service enforces which
+// report `type` each role (and outlet scope) may actually read.
+@Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER', 'REGIONAL_MANAGER', 'OUTLET_MANAGER')
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 
-  private sendCsv(res: Response, filename: string, csv: string) {
+  /**
+   * Streams a report as CSV. `@Res()` puts the handler in library-specific mode
+   * so the global TransformInterceptor does NOT wrap the body in
+   * `{ success, data }` — we write the raw CSV to the response ourselves.
+   */
+  @Get(':type')
+  async export(
+    @Param('type') type: string,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { filename, csv } = await this.reports.buildCsv(type, user);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(csv);
-  }
-
-  @Get('customers.csv')
-  async customers(@Res() res: Response) {
-    this.sendCsv(res, 'customers.csv', await this.reports.customersCsv());
-  }
-
-  @Get('outlets.csv')
-  async outlets(@Res() res: Response) {
-    this.sendCsv(res, 'outlets.csv', await this.reports.outletsCsv());
-  }
-
-  @Get('transactions.csv')
-  async transactions(
-    @Res() res: Response,
-    @Query('campaignId') campaignId?: string,
-  ) {
-    this.sendCsv(
-      res,
-      'transactions.csv',
-      await this.reports.transactionsCsv(campaignId),
-    );
-  }
-
-  private sendXlsx(res: Response, filename: string, buf: Buffer) {
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.send(buf);
-  }
-
-  @Get('customers.xlsx')
-  async customersXlsx(@Res() res: Response) {
-    this.sendXlsx(res, 'customers.xlsx', await this.reports.customersXlsx());
-  }
-
-  @Get('outlets.xlsx')
-  async outletsXlsx(@Res() res: Response) {
-    this.sendXlsx(res, 'outlets.xlsx', await this.reports.outletsXlsx());
-  }
-
-  @Get('transactions.xlsx')
-  async transactionsXlsx(
-    @Res() res: Response,
-    @Query('campaignId') campaignId?: string,
-  ) {
-    this.sendXlsx(res, 'transactions.xlsx', await this.reports.transactionsXlsx(campaignId));
   }
 }

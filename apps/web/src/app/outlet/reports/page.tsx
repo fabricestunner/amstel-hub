@@ -1,6 +1,6 @@
 'use client';
 
-import { FileSpreadsheet, FileText, Loader2, Table2 } from 'lucide-react';
+import { Loader2, Table2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -27,16 +27,10 @@ const REPORTS = [
   },
 ];
 
-const FORMATS = [
-  { format: 'csv' as const, label: 'CSV', icon: Table2 },
-  { format: 'excel' as const, label: 'Excel', icon: FileSpreadsheet },
-  { format: 'pdf' as const, label: 'PDF', icon: FileText },
-];
-
 export default function OutletReportsPage() {
   const exportReport = useExportReport();
-  // React Query exposes the in-flight variables, so we can show a spinner on
-  // the exact button being generated while disabling the others.
+  // React Query exposes the in-flight variables, so we can spin the exact
+  // report being generated.
   const active = exportReport.isPending ? exportReport.variables : undefined;
 
   return (
@@ -53,31 +47,22 @@ export default function OutletReportsPage() {
               <CardDescription>{r.description}</CardDescription>
             </CardHeader>
             <CardContent />
-            <CardFooter className="gap-2">
-              {FORMATS.map(({ format, label, icon: Icon }) => {
-                const isThisLoading =
-                  active?.type === r.type && active?.format === format;
-                return (
-                  <Button
-                    key={format}
-                    variant="outline"
-                    size="sm"
-                    disabled={exportReport.isPending}
-                    aria-busy={isThisLoading}
-                    aria-label={`Export ${r.title} as ${label}`}
-                    onClick={() =>
-                      exportReport.mutate({ type: r.type, format })
-                    }
-                  >
-                    {isThisLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                    ) : (
-                      <Icon className="h-4 w-4" aria-hidden />
-                    )}
-                    {label}
-                  </Button>
-                );
-              })}
+            <CardFooter>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={exportReport.isPending}
+                aria-busy={active?.type === r.type}
+                aria-label={`Download ${r.title} as CSV`}
+                onClick={() => exportReport.mutate({ type: r.type })}
+              >
+                {active?.type === r.type ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <Table2 className="h-4 w-4" aria-hidden />
+                )}
+                Download CSV
+              </Button>
             </CardFooter>
           </Card>
         ))}

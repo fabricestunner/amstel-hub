@@ -28,7 +28,7 @@ const STEPS = [
   {
     icon: Coins,
     title: 'Earn points instantly',
-    desc: 'Each verified purchase adds a point to your wallet — one point for every Amstel — and moves you up the leaderboard.',
+    desc: 'Each verified purchase adds a point to your wallet — one point for every Amstel — ready to spend whenever you like.',
   },
   {
     icon: Gift,
@@ -143,9 +143,8 @@ export default function HomePage() {
             </h1>
 
             <p className="max-w-xl text-lg text-white/85">
-              Turn every Amstel into points. Redeem them for vouchers, free
-              drinks and pool-tournament entries — and climb Rwanda&apos;s
-              national leaderboard.
+              Turn every Amstel into points, then spend them on vouchers, free
+              drinks and entries to nationwide pool tournaments.
             </p>
 
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">

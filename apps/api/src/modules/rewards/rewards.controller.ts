@@ -32,6 +32,15 @@ export class RewardsController {
     return this.rewards.list(query);
   }
 
+  @Roles('CUSTOMER', 'PROMOTER')
+  @Get('rewards/redemptions')
+  listMyRedemptions(
+    @CurrentUser('id') userId: string,
+    @Query() query: ListRedemptionsDto,
+  ) {
+    return this.rewards.listMyRedemptions(userId, query);
+  }
+
   @Get('rewards/:id')
   findOne(@Param('id') id: string) {
     return this.rewards.findById(id);

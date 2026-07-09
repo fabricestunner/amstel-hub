@@ -1,6 +1,6 @@
 'use client';
 
-import { FileSpreadsheet, FileText, Table2 } from 'lucide-react';
+import { Table2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -54,36 +54,15 @@ export default function AdminReportsPage() {
               <CardDescription>{r.description}</CardDescription>
             </CardHeader>
             <CardContent />
-            <CardFooter className="gap-2">
+            <CardFooter>
               <Button
                 variant="outline"
                 size="sm"
                 disabled={exportReport.isPending}
-                onClick={() =>
-                  exportReport.mutate({ type: r.type, format: 'csv' })
-                }
+                aria-label={`Download ${r.title} as CSV`}
+                onClick={() => exportReport.mutate({ type: r.type })}
               >
-                <Table2 className="h-4 w-4" /> CSV
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={exportReport.isPending}
-                onClick={() =>
-                  exportReport.mutate({ type: r.type, format: 'excel' })
-                }
-              >
-                <FileSpreadsheet className="h-4 w-4" /> Excel
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={exportReport.isPending}
-                onClick={() =>
-                  exportReport.mutate({ type: r.type, format: 'pdf' })
-                }
-              >
-                <FileText className="h-4 w-4" /> PDF
+                <Table2 className="h-4 w-4" /> Download CSV
               </Button>
             </CardFooter>
           </Card>

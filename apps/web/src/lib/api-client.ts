@@ -16,6 +16,11 @@ let accessToken: string | null = null;
 export function setAccessToken(token: string | null) {
   accessToken = token;
 }
+/** Current in-memory bearer token — for callers (e.g. file downloads) that
+ *  fetch outside the enveloped `api` helpers and need to set the header. */
+export function getAccessToken() {
+  return accessToken;
+}
 
 export class ApiError extends Error {
   constructor(
