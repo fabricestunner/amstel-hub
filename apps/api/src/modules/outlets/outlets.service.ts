@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -15,6 +17,12 @@ import {
   RedemptionHistoryQueryDto,
   UpdateOutletDto,
 } from './dto/outlet.dto';
+
+const GEO_INCLUDE = {
+  region: { select: { id: true, name: true } },
+  province: { select: { id: true, name: true } },
+  district: { select: { id: true, name: true } },
+} satisfies Prisma.OutletInclude;
 
 @Injectable()
 export class OutletsService {
@@ -49,11 +57,7 @@ export class OutletsService {
         skip: query.skip,
         take: query.limit,
         orderBy: { createdAt: query.sortOrder },
-        include: {
-          region: { select: { id: true, name: true } },
-          province: { select: { id: true, name: true } },
-          district: { select: { id: true, name: true } },
-        },
+        include: GEO_INCLUDE,
       }),
       this.prisma.outlet.count({ where }),
     ]);
@@ -63,11 +67,7 @@ export class OutletsService {
   async findById(id: string, user: AuthenticatedUser) {
     const outlet = await this.prisma.outlet.findFirst({
       where: { id, deletedAt: null },
-      include: {
-        region: { select: { id: true, name: true } },
-        province: { select: { id: true, name: true } },
-        district: { select: { id: true, name: true } },
-      },
+      include: GEO_INCLUDE,
     });
     if (!outlet) throw new NotFoundException('Outlet not found');
     this.assertReadScope(outlet.id, outlet.regionId, user);
@@ -75,19 +75,25 @@ export class OutletsService {
   }
 
   async create(dto: CreateOutletDto) {
-    return this.prisma.outlet.create({
-      data: {
-        name: dto.name,
-        code: dto.code,
-        address: dto.address,
-        latitude: dto.latitude,
-        longitude: dto.longitude,
-        regionId: dto.regionId,
-        provinceId: dto.provinceId,
-        districtId: dto.districtId,
-        managerId: dto.managerId,
-      },
-    });
+    try {
+      const outlet = await this.prisma.outlet.create({
+        data: {
+          name: dto.name,
+          code: dto.code,
+          address: dto.address,
+          latitude: dto.latitude,
+          longitude: dto.longitude,
+          regionId: dto.regionId,
+          provinceId: dto.provinceId,
+          districtId: dto.districtId,
+          managerId: dto.managerId,
+        },
+        include: GEO_INCLUDE,
+      });
+      return this.serialize(outlet);
+    } catch (err) {
+      throw this.mapWriteError(err);
+    }
   }
 
   async update(id: string, dto: UpdateOutletDto) {
@@ -112,7 +118,16 @@ export class OutletsService {
         ? { manager: { connect: { id: dto.managerId } } }
         : {}),
     };
-    return this.prisma.outlet.update({ where: { id }, data });
+    try {
+      const outlet = await this.prisma.outlet.update({
+        where: { id },
+        data,
+        include: GEO_INCLUDE,
+      });
+      return this.serialize(outlet);
+    } catch (err) {
+      throw this.mapWriteError(err);
+    }
   }
 
   async softDelete(id: string) {
@@ -337,6 +352,34 @@ export class OutletsService {
       orderBy: { name: 'asc' },
       select: { id: true, name: true, provinceId: true },
     });
+  }
+
+  /**
+   * Turns the Prisma write errors this endpoint can actually provoke into
+   * user-facing 4xx. Without this they surface as an opaque 500: `code` and
+   * `managerId` are both unique, and the geo ids arrive straight from the
+   * client so they can reference rows that no longer exist.
+   */
+  private mapWriteError(err: unknown): unknown {
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return err;
+
+    if (err.code === 'P2002') {
+      const target = Array.isArray(err.meta?.target)
+        ? (err.meta.target as string[])
+        : [];
+      if (target.includes('managerId')) {
+        return new ConflictException(
+          'That manager already runs another outlet',
+        );
+      }
+      return new ConflictException('An outlet with this code already exists');
+    }
+    if (err.code === 'P2003' || err.code === 'P2025') {
+      return new BadRequestException(
+        'Unknown region, province, district or manager',
+      );
+    }
+    return err;
   }
 
   private async ensureExists(id: string) {

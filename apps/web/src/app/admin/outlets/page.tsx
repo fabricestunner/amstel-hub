@@ -328,7 +328,11 @@ export default function AdminOutletsPage() {
                     id="code"
                     placeholder="OUT-KGL-001"
                     className="uppercase"
-                    {...register('code')}
+                    {...register('code', {
+                      // The field only *renders* uppercase; normalize the value
+                      // too or a lowercase entry trips the uppercase-only rule.
+                      setValueAs: (v: string) => v.trim().toUpperCase(),
+                    })}
                   />
                   {errors.code && (
                     <p className="text-xs text-destructive">{errors.code.message}</p>
@@ -572,7 +576,13 @@ function EditOutletForm({
           </div>
           <div className="space-y-2">
             <Label htmlFor="edit-code">Code</Label>
-            <Input id="edit-code" className="uppercase" {...register('code')} />
+            <Input
+              id="edit-code"
+              className="uppercase"
+              {...register('code', {
+                setValueAs: (v: string) => v.trim().toUpperCase(),
+              })}
+            />
             {errors.code && <p className="text-xs text-destructive">{errors.code.message}</p>}
           </div>
         </div>
