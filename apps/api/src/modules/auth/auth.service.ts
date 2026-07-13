@@ -48,8 +48,11 @@ export class AuthService {
       );
     }
 
+    // Only a *live* account blocks signup. A soft-deleted one must not — the
+    // person was deleted and is entitled to register again from scratch.
     const existing = await this.prisma.user.findFirst({
       where: {
+        deletedAt: null,
         OR: [
           ...(phone ? [{ phone }] : []),
           ...(email ? [{ email }] : []),
@@ -67,20 +70,41 @@ export class AuthService {
       registeredOutletId = outlet?.id;
     }
 
-    const user = await this.prisma.user.create({
-      data: {
-        phone,
-        email,
-        passwordHash: await argon2.hash(dto.password),
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        gender: dto.gender,
-        yearOfBirth: dto.yearOfBirth,
-        role: 'CUSTOMER',
-        status: 'PENDING',
-        registeredOutletId,
-        wallet: { create: {} },
-      },
+    const passwordHash = await argon2.hash(dto.password);
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      // A soft-deleted account may still occupy this phone/email — both are
+      // unique columns, so the insert below would fail on the constraint.
+      // Release them first. This also heals accounts deleted before deletion
+      // started clearing identifiers itself.
+      if (phone) {
+        await tx.user.updateMany({
+          where: { phone, deletedAt: { not: null } },
+          data: { phone: null },
+        });
+      }
+      if (email) {
+        await tx.user.updateMany({
+          where: { email, deletedAt: { not: null } },
+          data: { email: null },
+        });
+      }
+
+      return tx.user.create({
+        data: {
+          phone,
+          email,
+          passwordHash,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          gender: dto.gender,
+          yearOfBirth: dto.yearOfBirth,
+          role: 'CUSTOMER',
+          status: 'PENDING',
+          registeredOutletId,
+          wallet: { create: {} },
+        },
+      });
     });
 
     // Phone signups verify via SMS; email-only signups verify via email.
@@ -102,7 +126,10 @@ export class AuthService {
     const identifier = normalizeIdentifier(dto.identifier);
 
     const user = await this.prisma.user.findFirst({
-      where: usingEmail ? { email: identifier } : { phone: identifier },
+      where: {
+        deletedAt: null,
+        ...(usingEmail ? { email: identifier } : { phone: identifier }),
+      },
     });
     if (!user) throw new UnauthorizedException('User not found');
 
@@ -195,7 +222,10 @@ export class AuthService {
     const usingEmail = isEmail(rawIdentifier);
     const identifier = normalizeIdentifier(rawIdentifier);
     const user = await this.prisma.user.findFirst({
-      where: usingEmail ? { email: identifier } : { phone: identifier },
+      where: {
+        deletedAt: null,
+        ...(usingEmail ? { email: identifier } : { phone: identifier }),
+      },
     });
     // Always succeed to avoid user enumeration.
     if (user) {
@@ -212,7 +242,10 @@ export class AuthService {
     const usingEmail = isEmail(dto.identifier);
     const identifier = normalizeIdentifier(dto.identifier);
     const user = await this.prisma.user.findFirst({
-      where: usingEmail ? { email: identifier } : { phone: identifier },
+      where: {
+        deletedAt: null,
+        ...(usingEmail ? { email: identifier } : { phone: identifier }),
+      },
     });
     if (!user) throw new UnauthorizedException('User not found');
 

@@ -10,6 +10,7 @@ import * as argon2 from 'argon2';
 import { paginate } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { normalizePhone } from '../../common/utils/phone.util';
+import { AuditService } from '../audit/audit.service';
 import {
   ChangePasswordDto,
   CreateUserDto,
@@ -37,7 +38,10 @@ const PUBLIC_USER_FIELDS = {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
   async findById(id: string) {
     const user = await this.prisma.user.findFirst({
@@ -182,7 +186,13 @@ export class UsersService {
     }
     const target = await this.prisma.user.findFirst({
       where: { id: targetId, deletedAt: null },
-      select: { id: true, role: true, managedOutlet: { select: { id: true } } },
+      select: {
+        id: true,
+        role: true,
+        email: true,
+        phone: true,
+        managedOutlet: { select: { id: true } },
+      },
     });
     if (!target) throw new NotFoundException('User not found');
     if (target.role === 'SUPER_ADMIN') {
@@ -197,10 +207,27 @@ export class UsersService {
           data: { managerId: null },
         });
       }
+      // `email` and `phone` are unique columns. The soft-deleted row keeps
+      // occupying them unless we clear them, which would lock the person out
+      // of ever signing up again. The row (and its points history) survives;
+      // only the identifiers are released. Originals go to the audit log.
       await tx.user.update({
         where: { id: targetId },
-        data: { deletedAt: new Date(), status: 'SUSPENDED' },
+        data: {
+          deletedAt: new Date(),
+          status: 'SUSPENDED',
+          email: null,
+          phone: null,
+        },
       });
+    });
+
+    await this.audit.record({
+      actorId,
+      action: 'user.delete',
+      entityType: 'User',
+      entityId: targetId,
+      before: { email: target.email, phone: target.phone },
     });
 
     return { success: true };
