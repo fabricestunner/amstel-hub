@@ -1,8 +1,11 @@
 'use client';
 
-import { Bell, LogOut, Search, Settings, User } from 'lucide-react';
+import { Bell, LogOut, Menu, Search, Settings, User } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import * as React from 'react';
 
+import { Logo } from '@/components/brand/logo';
+import { SidebarNav, type NavItem } from '@/components/layout/sidebar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -15,6 +18,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { initials } from '@/lib/format';
 import { useLogout } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -23,6 +32,8 @@ export interface TopbarProps {
   title?: string;
   user?: { name?: string; email?: string; avatarUrl?: string };
   notificationCount?: number;
+  nav?: NavItem[];
+  role?: string;
   className?: string;
 }
 
@@ -30,10 +41,19 @@ export function Topbar({
   title,
   user,
   notificationCount = 0,
+  nav,
+  role,
   className,
 }: TopbarProps) {
   const displayName = user?.name ?? 'Account';
   const logout = useLogout();
+  const pathname = usePathname();
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+
   return (
     <header
       className={cn(
@@ -41,6 +61,38 @@ export function Topbar({
         className,
       )}
     >
+      {nav && nav.length > 0 && (
+        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="md:hidden">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Open menu</span>
+            </Button>
+          </SheetTrigger>
+          {/* aria-describedby={undefined} silences Radix's missing-description warning */}
+          <SheetContent
+            side="left"
+            aria-describedby={undefined}
+            className="flex w-72 flex-col p-0"
+          >
+            <SheetTitle className="sr-only">Navigation</SheetTitle>
+            <div className="flex h-16 items-center justify-between border-b py-4 pl-4 pr-12">
+              <Logo size={30} withText />
+              {role && (
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  {role}
+                </span>
+              )}
+            </div>
+            <SidebarNav
+              items={nav}
+              onNavigate={() => setMobileNavOpen(false)}
+              className="flex-1 overflow-y-auto"
+            />
+          </SheetContent>
+        </Sheet>
+      )}
+
       {title && (
         <h1 className="hidden text-lg font-semibold lg:block">{title}</h1>
       )}

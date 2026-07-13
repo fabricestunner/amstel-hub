@@ -33,6 +33,8 @@ export function DashboardShell({
           title={title}
           user={user}
           notificationCount={notificationCount}
+          nav={nav}
+          role={role}
         />
         <main
           className={cn(

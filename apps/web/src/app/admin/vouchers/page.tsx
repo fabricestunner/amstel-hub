@@ -18,8 +18,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCampaigns, useGenerateCodes, type GenerateCodesResult } from '@/features/campaigns/use-campaigns';
 import { useOutlets } from '@/features/outlets/use-outlets';
+
+import { VoucherArchive } from './voucher-archive';
 
 interface GeneratedVoucher {
   code: string;
@@ -27,6 +30,7 @@ interface GeneratedVoucher {
 }
 
 export default function AdminVouchersPage() {
+  const [tab, setTab] = useState('generate');
   const [campaignId, setCampaignId] = useState('');
   const [outletId, setOutletId] = useState('');
   const [count, setCount] = useState(50);
@@ -105,9 +109,9 @@ export default function AdminVouchersPage() {
       <div className="no-print space-y-6">
         <PageHeader
           title="Promo Vouchers"
-          description="Generate and print promo codes to distribute at outlets."
+          description="Generate and print promo codes, and manage every voucher ever issued."
           actions={
-            vouchers.length > 0 ? (
+            tab === 'generate' && vouchers.length > 0 ? (
               <Button onClick={onPrint} variant="outline">
                 <Printer className="h-4 w-4" /> Print vouchers
               </Button>
@@ -115,127 +119,140 @@ export default function AdminVouchersPage() {
           }
         />
 
-        <Card className="max-w-xl">
-          <CardHeader>
-            <CardTitle className="text-base">Generate vouchers</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Campaign</Label>
-              <Select value={campaignId} onValueChange={setCampaignId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a campaign…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {campaigns.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                      {c.status && (
-                        <span className="ml-2 text-xs capitalize text-muted-foreground">
-                          ({c.status})
-                        </span>
-                      )}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <Tabs value={tab} onValueChange={setTab} className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="generate">Generate</TabsTrigger>
+            <TabsTrigger value="archive">Archive</TabsTrigger>
+          </TabsList>
 
-            <div className="space-y-2">
-              <Label>
-                Outlet <span className="text-muted-foreground">(optional)</span>
-              </Label>
-              <Select value={outletId} onValueChange={setOutletId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Link to an outlet…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {outlets.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      <span className="flex items-center gap-2">
-                        <Store className="h-3.5 w-3.5" />
-                        {o.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Linking vouchers to an outlet lets you track how that outlet is performing.
-              </p>
-            </div>
+          <TabsContent value="generate" className="space-y-6">
+            <Card className="max-w-xl">
+              <CardHeader>
+                <CardTitle className="text-base">Generate vouchers</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Campaign</Label>
+                  <Select value={campaignId} onValueChange={setCampaignId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a campaign…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {campaigns.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                          {c.status && (
+                            <span className="ml-2 text-xs capitalize text-muted-foreground">
+                              ({c.status})
+                            </span>
+                          )}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="count">Quantity</Label>
-                <Input
-                  id="count"
-                  type="number"
-                  min={1}
-                  max={500}
-                  value={count}
-                  onChange={(e) => setCount(Number(e.target.value))}
-                />
-                <p className="text-xs text-muted-foreground">Max 500 per batch</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Voucher type</Label>
-                <Select value={type} onValueChange={setType}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="PROMO">Promo voucher</SelectItem>
-                    <SelectItem value="QR">QR code</SelectItem>
-                    <SelectItem value="BOTTLE">Bottle cap</SelectItem>
-                    <SelectItem value="RECEIPT">Receipt</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                <div className="space-y-2">
+                  <Label>
+                    Outlet <span className="text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Select value={outletId} onValueChange={setOutletId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Link to an outlet…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {outlets.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          <span className="flex items-center gap-2">
+                            <Store className="h-3.5 w-3.5" />
+                            {o.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Linking vouchers to an outlet lets you track how that outlet is performing.
+                  </p>
+                </div>
 
-            <Button
-              className="w-full"
-              disabled={!campaignId || count < 1 || generate.isPending}
-              onClick={onGenerate}
-            >
-              {generate.isPending ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" /> Generating…
-                </>
-              ) : (
-                <>
-                  <Ticket className="h-4 w-4" /> Generate {count} voucher{count !== 1 ? 's' : ''}
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="count">Quantity</Label>
+                    <Input
+                      id="count"
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={count}
+                      onChange={(e) => setCount(Number(e.target.value))}
+                    />
+                    <p className="text-xs text-muted-foreground">Max 500 per batch</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Voucher type</Label>
+                    <Select value={type} onValueChange={setType}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PROMO">Promo voucher</SelectItem>
+                        <SelectItem value="QR">QR code</SelectItem>
+                        <SelectItem value="BOTTLE">Bottle cap</SelectItem>
+                        <SelectItem value="RECEIPT">Receipt</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-        {vouchers.length > 0 && (
-          <div>
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="font-semibold">{campaignName}</h2>
-                <p className="text-sm text-muted-foreground">
-                  {vouchers.length} vouchers ready. Click Print to get the sheet.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Badge variant="gold">{type}</Badge>
-                <Button onClick={onPrint}>
-                  <Printer className="h-4 w-4" /> Print
+                <Button
+                  className="w-full"
+                  disabled={!campaignId || count < 1 || generate.isPending}
+                  onClick={onGenerate}
+                >
+                  {generate.isPending ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" /> Generating…
+                    </>
+                  ) : (
+                    <>
+                      <Ticket className="h-4 w-4" /> Generate {count} voucher{count !== 1 ? 's' : ''}
+                    </>
+                  )}
                 </Button>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-              {vouchers.map((v) => (
-                <VoucherCard key={v.code} voucher={v} campaignName={campaignName} type={type} />
-              ))}
-            </div>
-          </div>
-        )}
+            {vouchers.length > 0 && (
+              <div>
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="font-semibold">{campaignName}</h2>
+                    <p className="text-sm text-muted-foreground">
+                      {vouchers.length} vouchers ready. Click Print to get the sheet.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Badge variant="gold">{type}</Badge>
+                    <Button onClick={onPrint}>
+                      <Printer className="h-4 w-4" /> Print
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                  {vouchers.map((v) => (
+                    <VoucherCard key={v.code} voucher={v} campaignName={campaignName} type={type} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="archive">
+            <VoucherArchive />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Print-only root — hidden on screen, visible when printing */}

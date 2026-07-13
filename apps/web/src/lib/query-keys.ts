@@ -19,6 +19,7 @@ export const queryKeys = {
   tournament: (id: string) => ['tournament', id] as const,
   bracket: (id: string) => ['bracket', id] as const,
   outlets: (params?: unknown) => ['outlets', params] as const,
+  vouchers: (params?: unknown) => ['vouchers', params] as const,
   outletDashboard: (id: string) => ['outlet-dashboard', id] as const,
   leaderboardCustomers: (period?: string) => ['leaderboard-customers', period] as const,
   leaderboardOutlets: (period?: string) => ['leaderboard-outlets', period] as const,

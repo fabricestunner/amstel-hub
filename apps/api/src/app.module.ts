@@ -28,6 +28,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { TournamentsModule } from './modules/tournaments/tournaments.module';
 import { UsersModule } from './modules/users/users.module';
+import { VouchersModule } from './modules/vouchers/vouchers.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { UsersModule } from './modules/users/users.module';
     LoyaltyModule,
     CampaignsModule,
     OutletsModule,
+    VouchersModule,
     RewardsModule,
     TournamentsModule,
     LeaderboardsModule,
