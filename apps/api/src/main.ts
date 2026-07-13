@@ -22,7 +22,24 @@ async function bootstrap() {
 
   // ── Security ──────────────────────────────────────────────
   app.use(helmet());
-  app.enableCors({ origin: api.corsOrigins, credentials: true });
+  app.enableCors({
+    origin: (origin, callback) => {
+      // Same-origin/server-to-server callers (curl, health checks) send no Origin.
+      if (!origin || api.corsOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      // A blocked origin is otherwise invisible server-side — the browser just
+      // reports a missing header. Log it so misconfiguration is obvious.
+      app
+        .get(Logger)
+        .warn(
+          `CORS: blocked origin "${origin}". Allowed: ${api.corsOrigins.join(', ')}`,
+        );
+      return callback(null, false);
+    },
+    credentials: true,
+  });
+  app.get(Logger).log(`CORS allowed origins: ${api.corsOrigins.join(', ')}`);
 
   // ── Global pipeline ───────────────────────────────────────
   app.setGlobalPrefix(api.globalPrefix);

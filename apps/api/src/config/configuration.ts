@@ -51,13 +51,25 @@ export interface AppConfig {
   };
 }
 
+/**
+ * Browsers send `Origin` with no trailing slash and no surrounding whitespace,
+ * so an entry that carries either never matches and CORS fails with no clue as
+ * to why. Normalize before the values ever reach `enableCors`.
+ */
+export function parseCorsOrigins(raw: string | undefined): string[] {
+  return (raw ?? 'http://localhost:3000')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+}
+
 export default (): AppConfig => ({
   env: process.env.NODE_ENV ?? 'development',
   api: {
     // Render/Railway/Heroku inject PORT; fall back to API_PORT then 4000.
     port: parseInt(process.env.PORT ?? process.env.API_PORT ?? '4000', 10),
     globalPrefix: process.env.API_GLOBAL_PREFIX ?? 'api/v1',
-    corsOrigins: (process.env.API_CORS_ORIGINS ?? 'http://localhost:3000').split(','),
+    corsOrigins: parseCorsOrigins(process.env.API_CORS_ORIGINS),
   },
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET ?? 'dev_access_secret',

@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { MoreHorizontal, Pencil, Plus, UserPlus } from 'lucide-react';
+import { MoreHorizontal, Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -33,10 +33,12 @@ import {
   CreateUserInput,
   UserRow,
   useCreateUser,
+  useDeleteUser,
   useUpdateUser,
   useUpdateUserStatus,
   useUsers,
 } from '@/features/users/use-users';
+import { useMe } from '@/lib/auth';
 
 function name(r: UserRow) {
   return (
@@ -88,11 +90,24 @@ export default function AdminCustomersPage() {
   const [search, setSearch] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<UserRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
 
   const { data, isLoading } = useUsers({ page, search });
   const updateStatus = useUpdateUserStatus();
   const updateUser = useUpdateUser();
   const createUser = useCreateUser();
+  const deleteUser = useDeleteUser();
+
+  // The API only lets a SUPER_ADMIN delete, so don't offer it to anyone else.
+  const { data: me } = useMe();
+  const isSuperAdmin = me?.role === 'SUPER_ADMIN';
+
+  function onDelete() {
+    if (!deleteTarget) return;
+    deleteUser.mutate(deleteTarget.id, {
+      onSuccess: () => setDeleteTarget(null),
+    });
+  }
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
@@ -273,6 +288,19 @@ export default function AdminCustomersPage() {
                               Ban
                             </DropdownMenuItem>
                           )}
+
+                          {/* Delete — SUPER_ADMIN only, mirroring the API guards */}
+                          {isSuperAdmin && !isProtected && r.id !== me?.id && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => setDeleteTarget(r)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete user
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -442,6 +470,32 @@ export default function AdminCustomersPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Delete confirmation ── */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete user?</DialogTitle>
+            <DialogDescription>
+              <strong>{deleteTarget ? name(deleteTarget) : ''}</strong> will lose
+              access immediately and disappear from this list. Their points history
+              and past redemptions are kept. This cannot be undone from the UI.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteUser.isPending}
+              onClick={onDelete}
+            >
+              {deleteUser.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

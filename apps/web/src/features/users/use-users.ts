@@ -90,11 +90,12 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: (id: string) => api.delete<void>(`/users/${id}`),
     onSuccess: () => {
-      toast.success('Team member removed');
+      // Shared by the team and customers tables, so keep the copy role-neutral.
+      toast.success('User deleted');
       qc.invalidateQueries({ queryKey: ['users'] });
       qc.invalidateQueries({ queryKey: ['outlets'] });
     },
-    onError: (err: Error) => toast.error(err.message || 'Could not remove member'),
+    onError: (err: Error) => toast.error(err.message || 'Could not delete user'),
   });
 }
 
