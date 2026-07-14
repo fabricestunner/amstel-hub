@@ -205,7 +205,7 @@ export default function CustomerDashboard() {
               >
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {(redeem.error as Error)?.message ??
-                  'Failed to redeem. Please try again.'}
+                  'Failed to scan. Please try again.'}
               </p>
             )}
 

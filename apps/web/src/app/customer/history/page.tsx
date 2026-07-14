@@ -23,7 +23,7 @@ export default function CustomerHistoryPage() {
     <div className="space-y-6">
       <PageHeader
         title="Points history"
-        description="A complete record of your earned and redeemed points."
+        description="A complete record of your earned and spent points."
       />
       {isError ? (
         <div

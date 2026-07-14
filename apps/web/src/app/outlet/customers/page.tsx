@@ -179,7 +179,7 @@ export default function OutletCustomersPage() {
             Redemption history
           </CardTitle>
           <CardDescription>
-            Every code your customers redeemed at this outlet, with points earned.
+            Every code your customers scanned at this outlet, with points earned.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -227,7 +227,7 @@ export default function OutletCustomersPage() {
                 },
                 {
                   key: 'redeemedAt',
-                  header: 'Redeemed at',
+                  header: 'Scanned at',
                   render: (r) => formatDateTime(r.redeemedAt),
                 },
               ]}

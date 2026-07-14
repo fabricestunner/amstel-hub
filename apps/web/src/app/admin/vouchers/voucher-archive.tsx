@@ -115,7 +115,7 @@ export function VoucherArchive() {
           accent="gold"
         />
         <StatCard
-          title="Redeemed"
+          title="Scanned"
           value={(counts?.redeemed ?? 0).toLocaleString()}
           icon={<CheckCircle2 />}
         />
@@ -173,7 +173,7 @@ export function VoucherArchive() {
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="ACTIVE">Active</SelectItem>
-            <SelectItem value="REDEEMED">Redeemed</SelectItem>
+            <SelectItem value="REDEEMED">Scanned</SelectItem>
             <SelectItem value="EXPIRED">Expired</SelectItem>
             <SelectItem value="VOID">Void</SelectItem>
           </SelectContent>
@@ -231,13 +231,13 @@ export function VoucherArchive() {
                 header: 'Status',
                 render: (r: Voucher) => (
                   <Badge variant={statusVariant(r.status)} className="capitalize">
-                    {r.status.toLowerCase()}
+                    {r.status === 'REDEEMED' ? 'scanned' : r.status.toLowerCase()}
                   </Badge>
                 ),
               },
               {
                 key: 'redeemed',
-                header: 'Redeemed',
+                header: 'Scanned',
                 render: (r: Voucher) =>
                   r.redeemedBy || r.redeemedAt ? (
                     <div className="text-sm leading-tight">
@@ -282,7 +282,7 @@ export function VoucherArchive() {
                           </DropdownMenuItem>
                           {isRedeemed && (
                             <p className="px-2 pb-1.5 pl-8 text-xs text-muted-foreground">
-                              Already redeemed — it can no longer be voided.
+                              Already scanned — it can no longer be voided.
                             </p>
                           )}
 
@@ -314,7 +314,7 @@ export function VoucherArchive() {
           <DialogHeader>
             <DialogTitle>Void voucher?</DialogTitle>
             <DialogDescription>
-              <strong>{voidTarget?.reference}</strong> can no longer be redeemed once
+              <strong>{voidTarget?.reference}</strong> can no longer be scanned once
               voided. This cannot be undone from the UI.
             </DialogDescription>
           </DialogHeader>
@@ -341,8 +341,8 @@ export function VoucherArchive() {
             <DialogDescription>
               Every unused code in batch{' '}
               <strong className="font-mono">{batchTarget?.batchId}</strong> will be
-              voided and can never be redeemed. Vouchers that customers have already
-              redeemed are skipped. This cannot be undone from the UI.
+              voided and can never be scanned. Vouchers that customers have already
+              scanned are skipped. This cannot be undone from the UI.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

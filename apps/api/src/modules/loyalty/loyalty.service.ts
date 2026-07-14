@@ -43,7 +43,7 @@ export class LoyaltyService {
     // Anti-fraud: block abusive redemption velocity (also raises a FraudFlag).
     if (await this.fraud.checkRedemptionVelocity(userId, ctx.ipAddress)) {
       throw new HttpException(
-        'Too many redemptions in a short window. Please slow down.',
+        'Too many scans in a short window. Please slow down.',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -83,13 +83,13 @@ export class LoyaltyService {
           redeemer.assignedOutletId === attributedOutletId
         ) {
           throw new ForbiddenException(
-            'Promoters cannot redeem vouchers at their own outlet',
+            'Promoters cannot scan vouchers at their own outlet',
           );
         }
 
         if (!code) throw new NotFoundException('Invalid code');
         if (code.status === 'REDEEMED') {
-          throw new ConflictException('Code already redeemed');
+          throw new ConflictException('Code already scanned');
         }
         if (code.status !== 'ACTIVE') {
           throw new BadRequestException(`Code is ${code.status.toLowerCase()}`);
@@ -107,7 +107,7 @@ export class LoyaltyService {
           data: { status: 'REDEEMED' },
         });
         if (claimed.count === 0) {
-          throw new ConflictException('Code already redeemed');
+          throw new ConflictException('Code already scanned');
         }
 
         const redemption = await tx.codeRedemption.create({

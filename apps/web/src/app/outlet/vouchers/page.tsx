@@ -57,7 +57,7 @@ export default function OutletVouchersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Vouchers"
-        description="Codes generated for your outlet, and whether they've been redeemed."
+        description="Codes generated for your outlet, and whether they've been scanned."
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -73,7 +73,7 @@ export default function OutletVouchersPage() {
           icon={<CheckCircle2 className="h-5 w-5" />}
         />
         <StatCard
-          title="Redeemed"
+          title="Scanned"
           value={isLoading ? '—' : (counts?.redeemed ?? 0).toLocaleString()}
           icon={<TicketCheck className="h-5 w-5" />}
         />
@@ -128,13 +128,15 @@ export default function OutletVouchersPage() {
                   header: 'Status',
                   render: (r: OutletVoucher) => (
                     <Badge variant={statusVariant(r.status)} className="capitalize">
-                      {r.status?.toLowerCase() ?? '—'}
+                      {r.status === 'REDEEMED'
+                        ? 'scanned'
+                        : r.status?.toLowerCase() ?? '—'}
                     </Badge>
                   ),
                 },
                 {
                   key: 'redeemedBy',
-                  header: 'Redeemed by',
+                  header: 'Scanned by',
                   render: (r: OutletVoucher) => r.redeemedBy ?? '—',
                 },
                 {

@@ -102,7 +102,7 @@ export class VouchersService {
     // A redemption already credited points to a customer's wallet. Voiding the
     // code would leave that transaction dangling, so it is simply not allowed.
     if (voucher.status === 'REDEEMED') {
-      throw new ConflictException('Cannot void a redeemed voucher');
+      throw new ConflictException('Cannot void a scanned voucher');
     }
 
     await this.prisma.loyaltyCode.update({

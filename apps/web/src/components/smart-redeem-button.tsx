@@ -7,7 +7,7 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 import { hasStoredSession } from '@/lib/auth';
 
 /**
- * "Redeem my points" CTA. Auth-aware, resolved purely client-side (no network) so
+ * "Scan a code" CTA. Auth-aware, resolved purely client-side (no network) so
  * it never blocks on a cold-starting backend:
  *   - session present → /customer dashboard (one tap back in)
  *   - no session      → /login
@@ -19,7 +19,7 @@ export function SmartRedeemButton({
   className,
   variant = 'gold',
   size = 'lg',
-  children = 'Redeem my points',
+  children = 'Scan a code',
   ...props
 }: ButtonProps) {
   const [href, setHref] = useState('/login');

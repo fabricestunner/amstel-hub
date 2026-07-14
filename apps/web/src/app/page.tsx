@@ -143,7 +143,7 @@ export default function HomePage() {
 
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               <SmartRedeemButton className="bg-amstel-gold font-bold text-white shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]">
-                Redeem my points <ArrowRight className="h-4 w-4" />
+                Scan a code <ArrowRight className="h-4 w-4" />
               </SmartRedeemButton>
               <Button
                 asChild
@@ -263,7 +263,7 @@ export default function HomePage() {
             </p>
             <div className="mt-6 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
               <SmartRedeemButton className="bg-amstel-gold font-bold text-white shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]">
-                Redeem my points <ArrowRight className="h-4 w-4" />
+                Scan a code <ArrowRight className="h-4 w-4" />
               </SmartRedeemButton>
               <Button
                 asChild
