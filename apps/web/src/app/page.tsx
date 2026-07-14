@@ -121,8 +121,7 @@ export default function HomePage() {
             />
 
             <Badge className="gap-1.5 border-white/25 bg-white/15 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm">
-              <Trophy className="h-3.5 w-3.5" /> Rwanda&apos;s brewery rewards
-              program
+              <Trophy className="h-3.5 w-3.5" /> Royal Friends of Amstel Rewards
             </Badge>
 
             <h1 className="max-w-4xl text-5xl font-black leading-[0.95] tracking-tight sm:text-6xl md:text-7xl">
