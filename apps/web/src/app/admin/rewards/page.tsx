@@ -45,11 +45,12 @@ type RewardForm = z.infer<typeof rewardSchema>;
 
 function redemptionVariant(status?: string) {
   switch (status) {
-    case 'approved':
+    case 'APPROVED':
       return 'gold';
-    case 'fulfilled':
+    case 'FULFILLED':
       return 'success';
-    case 'rejected':
+    case 'REJECTED':
+    case 'CANCELLED':
       return 'destructive';
     default:
       return 'warning';
@@ -219,7 +220,7 @@ function CatalogTab() {
 }
 
 function QueueTab() {
-  const { data: redemptions, isLoading } = useRewardRedemptions('pending');
+  const { data: redemptions, isLoading } = useRewardRedemptions();
   const approve = useApproveRedemption();
   const reject = useRejectRedemption();
   const fulfill = useFulfillRedemption();
@@ -238,33 +239,35 @@ function QueueTab() {
           rows={redemptions ?? []}
           columns={[
             {
-              key: 'rewardName',
+              key: 'reward',
               header: 'Reward',
-              render: (r: RewardRedemption) => r.rewardName ?? r.rewardId ?? '—',
+              render: (r: RewardRedemption) => r.reward?.name ?? '—',
             },
             {
-              key: 'customerName',
+              key: 'customer',
               header: 'Customer',
               render: (r: RewardRedemption) =>
-                r.customerName ?? r.customerId ?? '—',
+                [r.user?.firstName, r.user?.lastName].filter(Boolean).join(' ') ||
+                r.user?.id ||
+                '—',
             },
             {
-              key: 'collectionOutletName',
+              key: 'collectionOutlet',
               header: 'Collection Outlet',
-              render: (r: RewardRedemption) => r.collectionOutletName ?? '—',
+              render: (r: RewardRedemption) => r.collectionOutlet?.name ?? '—',
             },
             {
-              key: 'pointsCost',
+              key: 'points',
               header: 'Points',
               render: (r: RewardRedemption) =>
-                (r.pointsCost ?? 0).toLocaleString(),
+                (r.pointsSpent ?? 0).toLocaleString(),
             },
             {
               key: 'status',
               header: 'Status',
               render: (r: RewardRedemption) => (
                 <Badge variant={redemptionVariant(r.status)} className="capitalize">
-                  {r.status ?? 'pending'}
+                  {r.status?.toLowerCase() ?? 'pending'}
                 </Badge>
               ),
             },
@@ -278,7 +281,7 @@ function QueueTab() {
               header: '',
               render: (r: RewardRedemption) => (
                 <div className="flex justify-end gap-2">
-                  {r.status === 'pending' && (
+                  {r.status === 'PENDING' && (
                     <>
                       <Button
                         variant="outline"
@@ -296,7 +299,7 @@ function QueueTab() {
                       </Button>
                     </>
                   )}
-                  {r.status === 'approved' && (
+                  {r.status === 'APPROVED' && (
                     <Button
                       variant="gold"
                       size="sm"

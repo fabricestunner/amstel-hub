@@ -286,11 +286,14 @@ export class ReportsService {
     const names = new Map(campaigns.map((c) => [c.id, c.name]));
 
     return toCsv(
-      ['Campaign', 'Redemptions', 'Points Generated'],
+      ['Campaign', 'Redemptions', 'Points Generated', 'Estimated Beers Sold'],
       groups.map((g) => [
         g.campaignId ? (names.get(g.campaignId) ?? g.campaignId) : 'Unattributed',
         g._count._all,
         g._sum.points ?? 0,
+        // Each scanned code corresponds to one bottle, so beers sold ≈ the
+        // number of redemptions attributed to the campaign.
+        g._count._all,
       ]),
     );
   }

@@ -12,6 +12,8 @@ export const queryKeys = {
     status === undefined
       ? (['reward-redemptions'] as const)
       : (['reward-redemptions', status] as const),
+  outletRedemptions: (page?: number, status?: string) =>
+    ['reward-redemptions', 'outlet', page, status] as const,
   campaigns: (page?: number) =>
     page === undefined ? (['campaigns'] as const) : (['campaigns', page] as const),
   campaignCodes: (id: string) => ['campaign-codes', id] as const,

@@ -179,7 +179,7 @@ export class LoyaltyService {
       const name = user.firstName ?? 'Customer';
       const title = `You earned ${pointsEarned} points!`;
       const outletText = outlet ? ` at ${outlet}` : '';
-      const body = `Hi ${name}, you just earned ${pointsEarned} pts from the ${campaign} campaign${outletText}. Total: ${totalPoints} pts. Keep redeeming to climb the leaderboard!`;
+      const body = `Hi ${name}, you have earned ${pointsEarned} points from the ${campaign} Campaign${outletText}. Total Points: ${totalPoints}. Keep scanning to climb the leaderboard! Thank you.`;
 
       await Promise.allSettled([
         this.notifications.dispatch(userId, 'IN_APP', title, body),
@@ -187,7 +187,7 @@ export class LoyaltyService {
           ? this.notifications.dispatch(userId, 'EMAIL', title, body)
           : Promise.resolve(),
         user.phone
-          ? this.notifications.dispatch(userId, 'SMS', title, `Amstel Rewards: You earned ${pointsEarned} pts! Total: ${totalPoints} pts. ${campaign}${outletText}.`)
+          ? this.notifications.dispatch(userId, 'SMS', title, `Amstel Rewards: You earned ${pointsEarned} points from ${campaign}${outletText}. Total Points: ${totalPoints}. Keep scanning!`)
           : Promise.resolve(),
       ]);
     } catch {

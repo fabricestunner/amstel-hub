@@ -10,7 +10,12 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import { CurrentUser, Public, Roles } from '../../common/decorators';
+import {
+  AuthenticatedUser,
+  CurrentUser,
+  Public,
+  Roles,
+} from '../../common/decorators';
 import { TournamentsService } from './tournaments.service';
 import {
   CreateTournamentDto,
@@ -99,9 +104,12 @@ export class TournamentsController {
     return this.tournaments.recordResult(id, matchId, dto);
   }
 
-  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
+  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER', 'OUTLET_MANAGER')
   @Get(':id/registrants')
-  getRegistrants(@Param('id') id: string) {
-    return this.tournaments.getRegistrants(id);
+  getRegistrants(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.tournaments.getRegistrants(id, user);
   }
 }

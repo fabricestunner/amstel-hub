@@ -138,6 +138,33 @@ export default function OutletDashboardPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Campaign performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            isLoading={isLoading}
+            rows={data?.campaignPerformance ?? []}
+            emptyTitle="No campaign sales yet"
+            emptyDescription="Codes scanned at your outlet will be summarised per campaign here."
+            columns={[
+              { key: 'campaign', header: 'Campaign' },
+              {
+                key: 'redemptions',
+                header: 'Scans',
+                render: (r) => (r.redemptions ?? 0).toLocaleString(),
+              },
+              {
+                key: 'points',
+                header: 'Points generated',
+                render: (r) => (r.points ?? 0).toLocaleString(),
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Recent customers</CardTitle>
         </CardHeader>
         <CardContent>

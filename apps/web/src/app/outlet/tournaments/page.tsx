@@ -24,9 +24,20 @@ function formatDate(value?: string) {
 
 function RegistrantsView({ tournamentId }: { tournamentId: string }) {
   const { data: registrants, isLoading } = useTournamentRegistrants(tournamentId);
+  const count = registrants?.length ?? 0;
 
   return (
-    <DataTable
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-sm font-medium">Registrants at your outlet</h3>
+        {!isLoading && (
+          <p className="text-sm text-muted-foreground">
+            {count.toLocaleString()} {count === 1 ? 'person' : 'people'}{' '}
+            registered representing your outlet.
+          </p>
+        )}
+      </div>
+      <DataTable
       isLoading={isLoading}
       rows={registrants ?? []}
       columns={[
@@ -36,7 +47,8 @@ function RegistrantsView({ tournamentId }: { tournamentId: string }) {
         { key: 'status', header: 'Status', render: (r: TournamentRegistrant) => <Badge variant="outline" className="capitalize">{r.status.toLowerCase()}</Badge> },
         { key: 'registeredAt', header: 'Registered', render: (r: TournamentRegistrant) => formatDate(r.registeredAt) },
       ]}
-    />
+      />
+    </div>
   );
 }
 

@@ -26,13 +26,12 @@ export interface Reward {
 export interface RewardRedemption {
   id: string;
   rewardId?: string;
-  rewardName?: string;
-  customerName?: string;
-  customerId?: string;
-  pointsCost?: number;
-  status?: 'pending' | 'approved' | 'rejected' | 'fulfilled' | string;
+  pointsSpent?: number;
+  status?: 'PENDING' | 'APPROVED' | 'FULFILLED' | 'REJECTED' | 'CANCELLED' | string;
   createdAt?: string;
-  collectionOutletName?: string;
+  reward?: { name?: string; type?: string } | null;
+  user?: { id: string; firstName?: string; lastName?: string } | null;
+  collectionOutlet?: { id: string; name: string } | null;
 }
 
 export function useRewards(type?: string) {
@@ -99,6 +98,25 @@ export function useRewardRedemptions(status?: string) {
       );
     },
     select: (data) => (Array.isArray(data) ? data : data.items ?? []),
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Redemption queue for the outlet portal. The API force-scopes
+ * OUTLET_MANAGER callers to redemptions collected at their outlet, so no
+ * outlet id is passed here. Paginated (meta preserved for the table pager).
+ */
+export function useOutletRedemptions(page = 1, status?: string) {
+  return useQuery({
+    queryKey: queryKeys.outletRedemptions(page, status),
+    queryFn: () => {
+      const qs = new URLSearchParams({ page: String(page) });
+      if (status && status !== 'all') qs.set('status', status);
+      return api.get<Paginated<RewardRedemption>>(
+        `/reward-redemptions?${qs.toString()}`,
+      );
+    },
     placeholderData: keepPreviousData,
   });
 }

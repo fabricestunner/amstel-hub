@@ -61,7 +61,52 @@ export class OutletsService {
       }),
       this.prisma.outlet.count({ where }),
     ]);
-    return paginate(items.map((o) => this.serialize(o)), total, query);
+
+    const stats = await this.redemptionStats(items.map((o) => o.id));
+    return paginate(
+      items.map((o) => this.serialize(o, stats.get(o.id))),
+      total,
+      query,
+    );
+  }
+
+  /**
+   * Live per-outlet totals derived from code redemptions: sum of points earned
+   * at the outlet plus the number of distinct customers who earned them. The
+   * denormalized `Outlet.totalPoints` / `customerCount` columns are never
+   * written, so aggregating here is the only way these numbers are real.
+   * Two grouped queries for the whole page of outlets — no N+1.
+   */
+  private async redemptionStats(
+    outletIds: string[],
+  ): Promise<Map<string, { points: number; customers: number }>> {
+    const stats = new Map<string, { points: number; customers: number }>();
+    if (outletIds.length === 0) return stats;
+
+    const [pointsGroups, customerGroups] = await Promise.all([
+      this.prisma.codeRedemption.groupBy({
+        by: ['outletId'],
+        where: { outletId: { in: outletIds } },
+        _sum: { points: true },
+      }),
+      this.prisma.codeRedemption.groupBy({
+        by: ['outletId', 'userId'],
+        where: { outletId: { in: outletIds } },
+      }),
+    ]);
+
+    for (const g of pointsGroups) {
+      if (!g.outletId) continue;
+      stats.set(g.outletId, { points: g._sum.points ?? 0, customers: 0 });
+    }
+    // Each (outletId, userId) group is one distinct customer at that outlet.
+    for (const g of customerGroups) {
+      if (!g.outletId) continue;
+      const entry = stats.get(g.outletId) ?? { points: 0, customers: 0 };
+      entry.customers += 1;
+      stats.set(g.outletId, entry);
+    }
+    return stats;
   }
 
   async findById(id: string, user: AuthenticatedUser) {
@@ -152,6 +197,7 @@ export class OutletsService {
       customersRegistered,
       tournamentEntries,
       recentCustomers,
+      campaignGroups,
     ] = await Promise.all([
       // Points generated at this outlet is the sum of points from every code
       // redeemed here — derived live so it always reflects real redemptions
@@ -179,7 +225,38 @@ export class OutletsService {
           wallet: { select: { availablePoints: true } },
         },
       }),
+      // Per-campaign sales at this outlet: every EARN transaction is one
+      // scanned code (one bottle), summarised per campaign — the same
+      // aggregation the outlet "Sales summary" CSV uses.
+      this.prisma.pointsTransaction.groupBy({
+        by: ['campaignId'],
+        where: { outletId: id, type: 'EARN' },
+        _count: { _all: true },
+        _sum: { points: true },
+      }),
     ]);
+
+    const campaignIds = campaignGroups
+      .map((g) => g.campaignId)
+      .filter((cid): cid is string => Boolean(cid));
+    const campaigns = campaignIds.length
+      ? await this.prisma.campaign.findMany({
+          where: { id: { in: campaignIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const campaignNames = new Map(campaigns.map((c) => [c.id, c.name]));
+
+    const campaignPerformance = campaignGroups
+      .map((g) => ({
+        campaignId: g.campaignId,
+        campaign: g.campaignId
+          ? (campaignNames.get(g.campaignId) ?? g.campaignId)
+          : 'Unattributed',
+        redemptions: g._count._all,
+        points: g._sum.points ?? 0,
+      }))
+      .sort((a, b) => b.points - a.points);
 
     return {
       outletId: outlet.id,
@@ -191,6 +268,7 @@ export class OutletsService {
       redemptionsCount: redemptionAgg._count._all,
       customersRegistered,
       tournamentEntries,
+      campaignPerformance,
       recentCustomers: recentCustomers.map((c) => ({
         id: c.id,
         name: [c.firstName, c.lastName].filter(Boolean).join(' ') || c.id,
@@ -422,16 +500,19 @@ export class OutletsService {
     throw new ForbiddenException('Outlet outside your scope');
   }
 
-  private serialize(outlet: {
-    totalPoints: bigint;
-    totalSales: Prisma.Decimal;
-    customerCount: number;
-    status: string;
-    region?: { id: string; name: string } | null;
-    province?: { id: string; name: string } | null;
-    district?: { id: string; name: string } | null;
-    [k: string]: unknown;
-  }) {
+  private serialize(
+    outlet: {
+      totalPoints: bigint;
+      totalSales: Prisma.Decimal;
+      customerCount: number;
+      status: string;
+      region?: { id: string; name: string } | null;
+      province?: { id: string; name: string } | null;
+      district?: { id: string; name: string } | null;
+      [k: string]: unknown;
+    },
+    stats?: { points: number; customers: number },
+  ) {
     const { region, province, district, totalPoints, totalSales, customerCount, status, ...rest } = outlet;
     return {
       ...rest,
@@ -439,8 +520,10 @@ export class OutletsService {
       province: province?.name ?? null,
       district: district?.name ?? null,
       status: status.toLowerCase(),
-      pointsGenerated: Number(totalPoints),
-      customers: customerCount,
+      // Prefer live redemption-derived stats; the denormalized columns are
+      // never updated and stay at 0.
+      pointsGenerated: stats ? stats.points : Number(totalPoints),
+      customers: stats ? stats.customers : customerCount,
     };
   }
 }

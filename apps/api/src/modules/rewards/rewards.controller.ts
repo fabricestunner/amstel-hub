@@ -11,7 +11,11 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-import { CurrentUser, Roles } from '../../common/decorators';
+import {
+  AuthenticatedUser,
+  CurrentUser,
+  Roles,
+} from '../../common/decorators';
 import { RewardsService } from './rewards.service';
 import {
   CreateRewardDto,
@@ -74,10 +78,13 @@ export class RewardsController {
     return this.rewards.redeem(userId, id, dto);
   }
 
-  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
+  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER', 'OUTLET_MANAGER')
   @Get('reward-redemptions')
-  listRedemptions(@Query() query: ListRedemptionsDto) {
-    return this.rewards.listRedemptions(query);
+  listRedemptions(
+    @Query() query: ListRedemptionsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.rewards.listRedemptions(query, user);
   }
 
   @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
@@ -92,9 +99,9 @@ export class RewardsController {
     return this.rewards.reject(id, approverId);
   }
 
-  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
+  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER', 'OUTLET_MANAGER')
   @Patch('reward-redemptions/:id/fulfill')
-  fulfill(@Param('id') id: string, @CurrentUser('id') approverId: string) {
-    return this.rewards.fulfill(id, approverId);
+  fulfill(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.rewards.fulfill(id, user);
   }
 }

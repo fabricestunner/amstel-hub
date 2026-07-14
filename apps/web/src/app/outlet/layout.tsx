@@ -1,6 +1,13 @@
 'use client';
 
-import { FileText, LayoutDashboard, Ticket, Trophy, Users } from 'lucide-react';
+import {
+  FileText,
+  Gift,
+  LayoutDashboard,
+  Ticket,
+  Trophy,
+  Users,
+} from 'lucide-react';
 
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +17,7 @@ const nav = [
   { href: '/outlet', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/outlet/customers', label: 'Customers', icon: Users },
   { href: '/outlet/vouchers', label: 'Vouchers', icon: Ticket },
+  { href: '/outlet/redemptions', label: 'Redemptions', icon: Gift },
   { href: '/outlet/tournaments', label: 'Tournaments', icon: Trophy },
   { href: '/outlet/reports', label: 'Reports', icon: FileText },
 ];

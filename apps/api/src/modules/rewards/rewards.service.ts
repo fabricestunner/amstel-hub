@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
+import { AuthenticatedUser } from '../../common/decorators';
 import { paginate } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
@@ -193,7 +195,6 @@ export class RewardsService {
             userId,
             status: 'PENDING',
             pointsSpent: reward.pointsCost,
-            // @ts-expect-error - collectionOutletId added in schema.prisma but migration not yet applied
             collectionOutletId: dto.collectionOutletId,
           },
         });
@@ -258,9 +259,16 @@ export class RewardsService {
     return paginate(items, total, query);
   }
 
-  async listRedemptions(query: ListRedemptionsDto) {
+  /**
+   * Fulfillment/approval queue. Admins see every redemption; an
+   * OUTLET_MANAGER is force-scoped to redemptions collected at their outlet.
+   */
+  async listRedemptions(query: ListRedemptionsDto, user: AuthenticatedUser) {
     const where: Prisma.RewardRedemptionWhereInput = {
       ...(query.status ? { status: query.status } : {}),
+      ...(user.role === 'OUTLET_MANAGER'
+        ? { collectionOutletId: user.outletId ?? '__none__' }
+        : {}),
     };
     const [items, total] = await Promise.all([
       this.prisma.rewardRedemption.findMany({
@@ -271,7 +279,6 @@ export class RewardsService {
         include: {
           reward: { select: { name: true, type: true } },
           user: { select: { id: true, firstName: true, lastName: true } },
-          // @ts-expect-error - collectionOutlet relation added in schema.prisma but migration not yet applied
           collectionOutlet: { select: { id: true, name: true } },
         },
       }),
@@ -288,8 +295,33 @@ export class RewardsService {
     return this.setRedemptionStatus(id, 'REJECTED', approverId);
   }
 
-  fulfill(id: string, approverId: string) {
-    return this.setRedemptionStatus(id, 'FULFILLED', approverId);
+  /**
+   * Admins can fulfill any redemption. An OUTLET_MANAGER may only fulfill
+   * redemptions collected at their own outlet, and only once an admin has
+   * APPROVED them (the PENDING -> APPROVED step stays admin-only).
+   */
+  async fulfill(id: string, user: AuthenticatedUser) {
+    if (user.role === 'OUTLET_MANAGER') {
+      const redemption = await this.prisma.rewardRedemption.findUnique({
+        where: { id },
+        select: { collectionOutletId: true, status: true },
+      });
+      if (!redemption) throw new NotFoundException('Redemption not found');
+      if (
+        !user.outletId ||
+        redemption.collectionOutletId !== user.outletId
+      ) {
+        throw new ForbiddenException(
+          'Redemption is not assigned to your outlet',
+        );
+      }
+      if (redemption.status !== 'APPROVED') {
+        throw new BadRequestException(
+          'Only approved redemptions can be fulfilled',
+        );
+      }
+    }
+    return this.setRedemptionStatus(id, 'FULFILLED', user.id);
   }
 
   private async setRedemptionStatus(

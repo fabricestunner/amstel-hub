@@ -44,6 +44,12 @@ export interface OutletDashboard {
   customersRegistered?: number;
   rewardsEarned?: number;
   tournamentEntries?: number;
+  campaignPerformance?: {
+    campaignId?: string | null;
+    campaign: string;
+    redemptions: number;
+    points: number;
+  }[];
   pointsTrend?: { name: string; value: number }[];
   recentCustomers?: {
     id: string;

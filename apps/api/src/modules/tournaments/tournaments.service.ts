@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, TournamentStage, TournamentStatus } from '@prisma/client';
 
+import { AuthenticatedUser } from '../../common/decorators';
 import { paginate } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import {
@@ -227,7 +228,6 @@ export class TournamentsService {
             tournamentId,
             userId,
             pointsSpent: tournament.entryPointsCost,
-            // @ts-expect-error - outletId added in schema.prisma but migration not yet applied
             outletId,
           },
         });
@@ -465,13 +465,19 @@ export class TournamentsService {
   }
 
   /**
-   * Get all registrants for a tournament with user and outlet details.
+   * Get registrants for a tournament with user and outlet details.
+   * Admin roles see every registration; an OUTLET_MANAGER only sees
+   * registrations made representing their own outlet (JwtStrategy resolves
+   * the manager's outlet onto `user.outletId`).
    */
-  async getRegistrants(tournamentId: string) {
+  async getRegistrants(tournamentId: string, user?: AuthenticatedUser) {
     await this.findById(tournamentId);
+    const where: Prisma.TournamentRegistrationWhereInput = { tournamentId };
+    if (user?.role === 'OUTLET_MANAGER') {
+      where.outletId = user.outletId ?? '__none__';
+    }
     const registrants = await this.prisma.tournamentRegistration.findMany({
-      where: { tournamentId },
-      // @ts-ignore - user and outlet relations added in schema.prisma but migration not yet applied
+      where,
       include: {
         user: {
           select: {
@@ -492,7 +498,6 @@ export class TournamentsService {
       },
       orderBy: { createdAt: 'asc' },
     });
-    // @ts-ignore - user and outlet relations added in schema.prisma but migration not yet applied
     return registrants.map((r) => ({
       id: r.id,
       userId: r.userId,
