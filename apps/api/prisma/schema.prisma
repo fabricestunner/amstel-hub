@@ -416,6 +416,8 @@ model Outlet {
   codeRedemptions CodeRedemption[]
   pointsTxns      PointsTransaction[]
   leaderboardRows LeaderboardEntry[]
+  tournamentRegs      TournamentRegistration[] @relation("TournamentOutlet")
+  rewardCollections   RewardRedemption[]       @relation("RewardCollectionOutlet")
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -604,6 +606,10 @@ model RewardRedemption {
   user      User             @relation(fields: [userId], references: [id])
   status    RedemptionStatus @default(PENDING)
   pointsSpent Int
+  // outlet/bar where the customer will collect their reward; required for
+  // admin/outlet fulfillment visibility.
+  collectionOutletId String? @db.Uuid
+  collectionOutlet   Outlet? @relation("RewardCollectionOutlet", fields: [collectionOutletId], references: [id])
   fulfillmentRef String? // tracking number / coupon code / etc.
   notes     String?
   approvedById String?       @db.Uuid
@@ -616,6 +622,7 @@ model RewardRedemption {
 
   @@index([userId])
   @@index([rewardId, status])
+  @@index([collectionOutletId])
   @@map("reward_redemptions")
 }
 
@@ -662,12 +669,17 @@ model TournamentRegistration {
   status       RegistrationStatus @default(REGISTERED)
   seed         Int?
   pointsSpent  Int                @default(0)
+  // outlet/bar the customer chose to represent; must be one where the
+  // customer has previously scanned a code.
+  outletId String? @db.Uuid
+  outlet   Outlet? @relation("TournamentOutlet", fields: [outletId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([tournamentId, userId]) // one entry per customer
   @@index([userId])
+  @@index([outletId])
   @@map("tournament_registrations")
 }
 

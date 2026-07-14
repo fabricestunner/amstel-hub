@@ -148,3 +148,11 @@ export class MatchResultDto {
   @Min(0)
   scoreTwo?: number;
 }
+
+export class RegisterTournamentDto {
+  @ApiProperty({
+    description: 'Outlet/bar the customer chooses to represent; must be one where they have scanned a code',
+  })
+  @IsUUID()
+  outletId!: string;
+}

@@ -39,6 +39,12 @@ export interface Bracket {
   matches: BracketMatch[];
 }
 
+export interface Outlet {
+  id: string;
+  name: string;
+  code: string;
+}
+
 export function useTournaments() {
   return useQuery({
     queryKey: queryKeys.tournaments,
@@ -56,11 +62,40 @@ export function useTournamentBracket(id: string | undefined) {
   });
 }
 
+export function useCustomerOutlets() {
+  return useQuery({
+    queryKey: ['outlets', 'mine'],
+    queryFn: () => api.get<Outlet[]>('/outlets/mine'),
+  });
+}
+
+export interface TournamentRegistrant {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail?: string;
+  userPhone?: string;
+  outletId?: string;
+  outletName?: string;
+  outletCode?: string;
+  pointsSpent: number;
+  status: string;
+  registeredAt: string;
+}
+
+export function useTournamentRegistrants(tournamentId: string | undefined) {
+  return useQuery({
+    queryKey: ['tournaments', tournamentId, 'registrants'],
+    queryFn: () => api.get<TournamentRegistrant[]>(`/tournaments/${tournamentId}/registrants`),
+    enabled: !!tournamentId,
+  });
+}
+
 export function useRegisterTournament() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      api.post(`/tournaments/${id}/register`, {}),
+    mutationFn: ({ tournamentId, outletId }: { tournamentId: string; outletId: string }) =>
+      api.post(`/tournaments/${tournamentId}/register`, { outletId }),
     onSuccess: () => {
       toast.success('Registered for tournament!');
       qc.invalidateQueries({ queryKey: queryKeys.tournaments });

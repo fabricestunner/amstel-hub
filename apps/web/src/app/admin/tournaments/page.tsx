@@ -26,10 +26,12 @@ import { BracketView } from '@/features/tournaments/bracket-view';
 import {
   BracketMatch,
   Tournament,
+  TournamentRegistrant,
   useCreateTournament,
   useEnterMatchResult,
   useGenerateBracket,
   useTournamentBracket,
+  useTournamentRegistrants,
   useTournaments,
 } from '@/features/tournaments/use-tournaments';
 
@@ -122,11 +124,40 @@ function BracketManager({ tournamentId }: { tournamentId: string }) {
   );
 }
 
+function RegistrantsView({ tournamentId }: { tournamentId: string }) {
+  const { data: registrants, isLoading } = useTournamentRegistrants(tournamentId);
+
+  function formatDate(value?: string) {
+    if (!value) return '—';
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
+  }
+
+  return (
+    <div className="space-y-4">
+      <DataTable
+        isLoading={isLoading}
+        rows={registrants ?? []}
+        columns={[
+          { key: 'userName', header: 'Name' },
+          { key: 'userEmail', header: 'Email', render: (r: TournamentRegistrant) => r.userEmail ?? '—' },
+          { key: 'userPhone', header: 'Phone', render: (r: TournamentRegistrant) => r.userPhone ?? '—' },
+          { key: 'outletName', header: 'Outlet', render: (r: TournamentRegistrant) => r.outletName ?? '—' },
+          { key: 'pointsSpent', header: 'Points', render: (r: TournamentRegistrant) => r.pointsSpent.toLocaleString() },
+          { key: 'status', header: 'Status', render: (r: TournamentRegistrant) => <Badge variant="outline" className="capitalize">{r.status.toLowerCase()}</Badge> },
+          { key: 'registeredAt', header: 'Registered', render: (r: TournamentRegistrant) => formatDate(r.registeredAt) },
+        ]}
+      />
+    </div>
+  );
+}
+
 export default function AdminTournamentsPage() {
   const { data: tournaments, isLoading } = useTournaments();
   const create = useCreateTournament();
   const [open, setOpen] = useState(false);
   const [manageId, setManageId] = useState<string | null>(null);
+  const [registrantsId, setRegistrantsId] = useState<string | null>(null);
 
   const {
     register,
@@ -188,7 +219,16 @@ export default function AdminTournamentsPage() {
                 key: 'actions',
                 header: '',
                 render: (r: Tournament) => (
-                  <div className="flex justify-end">
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setRegistrantsId(registrantsId === r.id ? null : r.id)
+                      }
+                    >
+                      {registrantsId === r.id ? 'Close' : 'View registrants'}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -210,6 +250,14 @@ export default function AdminTournamentsPage() {
         <Card>
           <CardContent className="pt-6">
             <BracketManager tournamentId={manageId} />
+          </CardContent>
+        </Card>
+      )}
+
+      {registrantsId && (
+        <Card>
+          <CardContent className="pt-6">
+            <RegistrantsView tournamentId={registrantsId} />
           </CardContent>
         </Card>
       )}

@@ -45,7 +45,7 @@ const QrScannerDialog = dynamic(
 function formatDate(value?: string) {
   if (!value) return '—';
   const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString();
 }
 
 export default function CustomerDashboard() {
@@ -84,7 +84,7 @@ export default function CustomerDashboard() {
     <div className="space-y-8">
       <PageHeader
         title={`Welcome${me?.firstName ? `, ${me.firstName}` : ''}`}
-        description="Redeem Amstel codes to earn points and claim rewards."
+        description="Scan Amstel codes to earn points and claim rewards."
       />
 
       {/* Points summary */}
@@ -96,7 +96,7 @@ export default function CustomerDashboard() {
           accent="gold"
         />
         <StatCard
-          title="Codes redeemed"
+          title="Codes scanned"
           value={walletLoading ? '—' : (wallet?.codesRedeemed ?? 0).toLocaleString()}
           icon={<QrCode className="h-5 w-5" />}
         />
@@ -119,7 +119,7 @@ export default function CustomerDashboard() {
             <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-green-600 dark:text-green-400" />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-green-700 dark:text-green-400">
-                Code redeemed successfully!
+                Code scanned successfully!
               </p>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 <span className="font-bold text-foreground text-lg">+{lastResult.pointsEarned}</span> points earned
@@ -152,7 +152,7 @@ export default function CustomerDashboard() {
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amstel-gold/15 text-amstel-gold">
                 <Sparkles className="h-5 w-5" />
               </span>
-              Redeem a code
+              Scan a Code
             </CardTitle>
             <CardDescription>
               Scan the QR or type the code from your Amstel bottle, can or
@@ -188,10 +188,10 @@ export default function CustomerDashboard() {
                 >
                   {redeem.isPending ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" /> Redeeming…
+                      <Loader2 className="h-4 w-4 animate-spin" /> Entering…
                     </>
                   ) : (
-                    'Redeem'
+                    'Enter'
                   )}
                 </Button>
               </div>
@@ -213,7 +213,7 @@ export default function CustomerDashboard() {
               <p className="font-medium text-foreground mb-1">How it works</p>
               <ol className="list-decimal list-inside space-y-1">
                 <li>Find the code on your Amstel bottle, can, or promo voucher</li>
-                <li>Enter the code above and click Redeem</li>
+                <li>Enter the code above and click Enter</li>
                 <li>Points are added instantly to your wallet</li>
                 <li>Use points for rewards or tournament entries</li>
               </ol>
@@ -232,7 +232,12 @@ export default function CustomerDashboard() {
           <DataTable
             isLoading={txnsLoading}
             columns={[
-              { key: 'description', header: 'Description', render: (r) => r.description ?? r.source ?? '—' },
+              {
+                key: 'campaign',
+                header: 'Campaign',
+                render: (r) => r.campaign ?? r.description ?? r.source ?? '—',
+              },
+              { key: 'outlet', header: 'Outlet', render: (r) => r.outlet ?? '—' },
               {
                 key: 'type',
                 header: 'Type',
@@ -244,7 +249,7 @@ export default function CustomerDashboard() {
               },
               {
                 key: 'points',
-                header: 'Points',
+                header: 'Points earned',
                 render: (r) => (
                   <span className={r.points < 0 ? 'text-destructive' : 'text-green-600 font-medium dark:text-green-400'}>
                     {r.points > 0 ? '+' : ''}
@@ -252,7 +257,7 @@ export default function CustomerDashboard() {
                   </span>
                 ),
               },
-              { key: 'createdAt', header: 'Date', render: (r) => formatDate(r.createdAt) },
+              { key: 'createdAt', header: 'Date & time', render: (r) => formatDate(r.createdAt) },
             ]}
             rows={transactions}
           />

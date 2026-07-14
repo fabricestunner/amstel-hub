@@ -249,6 +249,11 @@ function QueueTab() {
                 r.customerName ?? r.customerId ?? '—',
             },
             {
+              key: 'collectionOutletName',
+              header: 'Collection Outlet',
+              render: (r: RewardRedemption) => r.collectionOutletName ?? '—',
+            },
+            {
               key: 'pointsCost',
               header: 'Points',
               render: (r: RewardRedemption) =>

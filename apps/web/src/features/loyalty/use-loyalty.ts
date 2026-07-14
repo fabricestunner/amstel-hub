@@ -11,6 +11,8 @@ export interface PointsTransaction {
   type?: 'earn' | 'redeem' | 'adjust' | string;
   description?: string;
   source?: string;
+  campaign?: string | null;
+  outlet?: string | null;
   points: number;
   balance?: number;
   createdAt?: string;

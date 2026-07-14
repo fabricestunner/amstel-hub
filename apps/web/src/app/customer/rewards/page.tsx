@@ -32,6 +32,7 @@ import {
   useRedeemReward,
   useRewards,
 } from '@/features/rewards/use-rewards';
+import { Outlet, useCustomerOutlets } from '@/features/tournaments/use-tournaments';
 import { useWallet } from '@/features/wallet/use-wallet';
 
 type StatusVariant =
@@ -172,8 +173,11 @@ export default function CustomerRewardsPage() {
     refetch,
   } = useRewards(type === 'all' ? undefined : type);
   const { data: wallet } = useWallet();
+  const { data: customerOutlets } = useCustomerOutlets();
   const redeem = useRedeemReward();
   const [selected, setSelected] = useState<Reward | null>(null);
+  const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
+  const [outletDialogOpen, setOutletDialogOpen] = useState(false);
 
   const available = wallet?.availablePoints ?? 0;
 
@@ -283,7 +287,11 @@ export default function CustomerRewardsPage() {
                         variant="gold"
                         className="w-full"
                         disabled={!affordable || outOfStock}
-                        onClick={() => setSelected(reward)}
+                        onClick={() => {
+                          setSelected(reward);
+                          setSelectedOutletId(null);
+                          setOutletDialogOpen(true);
+                        }}
                       >
                         {!affordable
                           ? 'Not enough points'
@@ -313,29 +321,57 @@ export default function CustomerRewardsPage() {
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm redemption</DialogTitle>
+            <DialogTitle>Select Collection Outlet</DialogTitle>
             <DialogDescription>
-              Redeem <strong>{selected?.name}</strong> for{' '}
-              <strong>{selected?.pointsCost.toLocaleString()}</strong> points?
-              Your balance after redemption will be{' '}
-              {(available - (selected?.pointsCost ?? 0)).toLocaleString()} points.
+              Choose the outlet where you will collect your reward. You can only select an outlet where you have previously scanned a code.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-2 py-4">
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              <div className="font-medium">{selected?.name}</div>
+              <div className="text-muted-foreground">
+                Cost: {selected?.pointsCost.toLocaleString()} points
+              </div>
+            </div>
+            {!customerOutlets || customerOutlets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                You need to scan a code at an outlet before you can redeem rewards.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {customerOutlets.map((outlet: Outlet) => (
+                  <button
+                    key={outlet.id}
+                    type="button"
+                    onClick={() => setSelectedOutletId(outlet.id)}
+                    className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                      selectedOutletId === outlet.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="font-medium">{outlet.name}</div>
+                    <div className="text-xs text-muted-foreground">Code: {outlet.code}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelected(null)}>
               Cancel
             </Button>
             <Button
               variant="gold"
-              disabled={redeem.isPending}
+              disabled={!selectedOutletId || redeem.isPending}
               onClick={() => {
-                if (!selected) return;
-                redeem.mutate(selected.id, {
+                if (!selected || !selectedOutletId) return;
+                redeem.mutate({ rewardId: selected.id, collectionOutletId: selectedOutletId }, {
                   onSuccess: () => setSelected(null),
                 });
               }}
             >
-              {redeem.isPending ? 'Redeeming…' : 'Confirm'}
+              {redeem.isPending ? 'Redeeming…' : 'Confirm Redemption'}
             </Button>
           </DialogFooter>
         </DialogContent>

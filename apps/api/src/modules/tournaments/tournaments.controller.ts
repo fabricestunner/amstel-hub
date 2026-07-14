@@ -16,6 +16,7 @@ import {
   CreateTournamentDto,
   ListTournamentsDto,
   MatchResultDto,
+  RegisterTournamentDto,
   UpdateTournamentDto,
   UpdateTournamentStatusDto,
 } from './dto/tournament.dto';
@@ -74,8 +75,12 @@ export class TournamentsController {
 
   @Roles('CUSTOMER')
   @Post(':id/register')
-  register(@Param('id') id: string, @CurrentUser('id') userId: string) {
-    return this.tournaments.register(id, userId);
+  register(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: RegisterTournamentDto,
+  ) {
+    return this.tournaments.register(id, userId, dto.outletId);
   }
 
   @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
@@ -92,5 +97,11 @@ export class TournamentsController {
     @Body() dto: MatchResultDto,
   ) {
     return this.tournaments.recordResult(id, matchId, dto);
+  }
+
+  @Roles('SUPER_ADMIN', 'CAMPAIGN_MANAGER')
+  @Get(':id/registrants')
+  getRegistrants(@Param('id') id: string) {
+    return this.tournaments.getRegistrants(id);
   }
 }

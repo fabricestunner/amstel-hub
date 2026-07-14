@@ -14,11 +14,21 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
+  Outlet,
   Tournament,
+  useCustomerOutlets,
   useRegisterTournament,
   useTournamentBracket,
   useTournaments,
@@ -45,8 +55,12 @@ export default function CustomerTournamentsPage() {
   const { data: tournaments, isLoading, isError, error, refetch } =
     useTournaments();
   const { data: wallet } = useWallet();
+  const { data: customerOutlets } = useCustomerOutlets();
   const register = useRegisterTournament();
   const [openId, setOpenId] = useState<string | null>(null);
+  const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [registeringTournamentId, setRegisteringTournamentId] = useState<string | null>(null);
   const bracket = useTournamentBracket(openId ?? undefined);
 
   const available = wallet?.availablePoints ?? 0;
@@ -142,7 +156,11 @@ export default function CustomerTournamentsPage() {
                     <Button
                       variant="gold"
                       disabled={!isOpen || !canAfford || register.isPending}
-                      onClick={() => register.mutate(t.id)}
+                      onClick={() => {
+                        setSelectedOutletId(null);
+                        setRegisteringTournamentId(t.id);
+                        setDialogOpen(true);
+                      }}
                     >
                       {!canAfford && entry > 0 ? 'Not enough points' : 'Register'}
                     </Button>
@@ -170,6 +188,59 @@ export default function CustomerTournamentsPage() {
           })}
         </div>
       )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select Outlet to Represent</DialogTitle>
+            <DialogDescription>
+              Choose the outlet/bar you want to represent in this tournament. You can only select an outlet where you have previously scanned a code.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-4">
+            {!customerOutlets || customerOutlets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                You need to scan a code at an outlet before you can register for a tournament.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {customerOutlets.map((outlet: Outlet) => (
+                  <button
+                    key={outlet.id}
+                    type="button"
+                    onClick={() => setSelectedOutletId(outlet.id)}
+                    className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                      selectedOutletId === outlet.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-border hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="font-medium">{outlet.name}</div>
+                    <div className="text-xs text-muted-foreground">Code: {outlet.code}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="gold"
+              disabled={!selectedOutletId || register.isPending}
+              onClick={() => {
+                if (selectedOutletId && registeringTournamentId) {
+                  register.mutate({ tournamentId: registeringTournamentId, outletId: selectedOutletId });
+                  setDialogOpen(false);
+                }
+              }}
+            >
+              Confirm Registration
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

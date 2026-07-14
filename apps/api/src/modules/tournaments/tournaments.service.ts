@@ -157,7 +157,20 @@ export class TournamentsService {
    * duplicate entry, then debits the entry cost from the wallet in a
    * serializable transaction and records the registration.
    */
-  async register(tournamentId: string, userId: string) {
+  async register(tournamentId: string, userId: string, outletId: string) {
+    // Validate that the outlet is one where the customer has scanned a code
+    const customerOutlets = await this.prisma.codeRedemption.findMany({
+      where: { userId },
+      select: { outletId: true },
+      distinct: ['outletId'],
+    });
+    const validOutletIds = customerOutlets.map((r) => r.outletId).filter(Boolean) as string[];
+    if (!validOutletIds.includes(outletId)) {
+      throw new BadRequestException(
+        'You can only represent an outlet where you have scanned a code',
+      );
+    }
+
     return this.prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
         const tournament = await tx.tournament.findFirst({
@@ -214,6 +227,8 @@ export class TournamentsService {
             tournamentId,
             userId,
             pointsSpent: tournament.entryPointsCost,
+            // @ts-expect-error - outletId added in schema.prisma but migration not yet applied
+            outletId,
           },
         });
         return {
@@ -447,6 +462,50 @@ export class TournamentsService {
       status: m.status.toLowerCase(),
     }));
     return { tournamentId, matches: mapped };
+  }
+
+  /**
+   * Get all registrants for a tournament with user and outlet details.
+   */
+  async getRegistrants(tournamentId: string) {
+    await this.findById(tournamentId);
+    const registrants = await this.prisma.tournamentRegistration.findMany({
+      where: { tournamentId },
+      // @ts-ignore - user and outlet relations added in schema.prisma but migration not yet applied
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        outlet: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    // @ts-ignore - user and outlet relations added in schema.prisma but migration not yet applied
+    return registrants.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      userName: [r.user.firstName, r.user.lastName].filter(Boolean).join(' ') || r.user.email || '—',
+      userEmail: r.user.email,
+      userPhone: r.user.phone,
+      outletId: r.outletId,
+      outletName: r.outlet?.name,
+      outletCode: r.outlet?.code,
+      pointsSpent: r.pointsSpent,
+      status: r.status,
+      registeredAt: r.createdAt,
+    }));
   }
 
   private async getDefaultCampaignId(): Promise<string> {

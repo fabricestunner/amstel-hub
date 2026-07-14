@@ -91,6 +91,12 @@ export class RedeemRewardDto {
   @IsOptional()
   @IsUUID()
   tournamentId?: string;
+
+  @ApiProperty({
+    description: 'Outlet/bar where the customer will collect their reward',
+  })
+  @IsUUID()
+  collectionOutletId!: string;
 }
 
 export class ListRedemptionsDto extends PaginationQueryDto {

@@ -32,6 +32,7 @@ export interface RewardRedemption {
   pointsCost?: number;
   status?: 'pending' | 'approved' | 'rejected' | 'fulfilled' | string;
   createdAt?: string;
+  collectionOutletName?: string;
 }
 
 export function useRewards(type?: string) {
@@ -50,8 +51,8 @@ export function useRewards(type?: string) {
 export function useRedeemReward() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (rewardId: string) =>
-      api.post<RewardRedemption>(`/rewards/${rewardId}/redeem`, {}),
+    mutationFn: ({ rewardId, collectionOutletId }: { rewardId: string; collectionOutletId: string }) =>
+      api.post<RewardRedemption>(`/rewards/${rewardId}/redeem`, { collectionOutletId }),
     onSuccess: () => {
       toast.success('Reward redeemed! Check History for status.');
       qc.invalidateQueries({ queryKey: queryKeys.wallet });

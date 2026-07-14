@@ -56,12 +56,17 @@ export default function CustomerHistoryPage() {
               totalPages={data?.meta?.totalPages ?? 1}
               onPageChange={setPage}
               emptyTitle="No transactions yet"
-              emptyDescription="Redeem a code to start earning points. Your activity will show up here."
+              emptyDescription="Scan a code to start earning points. Your activity will show up here."
               columns={[
                 {
-                  key: 'description',
-                  header: 'Description',
-                  render: (r) => r.description ?? r.source ?? '—',
+                  key: 'campaign',
+                  header: 'Campaign',
+                  render: (r) => r.campaign ?? r.description ?? r.source ?? '—',
+                },
+                {
+                  key: 'outlet',
+                  header: 'Outlet',
+                  render: (r) => r.outlet ?? '—',
                 },
                 {
                   key: 'type',
@@ -76,7 +81,7 @@ export default function CustomerHistoryPage() {
                 },
                 {
                   key: 'points',
-                  header: 'Points',
+                  header: 'Points earned',
                   render: (r) => (
                     <span
                       className={
@@ -98,7 +103,7 @@ export default function CustomerHistoryPage() {
                 },
                 {
                   key: 'createdAt',
-                  header: 'Date',
+                  header: 'Date & time',
                   render: (r) => formatDate(r.createdAt),
                 },
               ]}

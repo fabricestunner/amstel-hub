@@ -45,6 +45,12 @@ export class OutletsController {
     return this.outlets.listDistricts(provinceId);
   }
 
+  @Roles('CUSTOMER')
+  @Get('mine')
+  mine(@CurrentUser('id') userId: string) {
+    return this.outlets.listCustomerOutlets(userId);
+  }
+
   @Roles('SUPER_ADMIN', 'REGIONAL_MANAGER', 'OUTLET_MANAGER')
   @Get()
   list(

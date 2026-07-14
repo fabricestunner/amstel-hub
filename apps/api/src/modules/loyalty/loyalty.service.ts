@@ -53,7 +53,7 @@ export class LoyaltyService {
     const outlet = dto.outletCode
       ? await this.prisma.outlet.findUnique({
           where: { code: dto.outletCode },
-          select: { id: true },
+          select: { id: true, name: true },
         })
       : null;
 
@@ -150,12 +150,13 @@ export class LoyaltyService {
           pointsEarned: code.pointsValue,
           availablePoints: Number(wallet.availablePoints),
           campaign: code.campaign.name,
+          outlet: outlet?.name,
         };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
 
-    void this.dispatchRedemptionNotifications(userId, result.pointsEarned, result.availablePoints, result.campaign);
+    void this.dispatchRedemptionNotifications(userId, result.pointsEarned, result.availablePoints, result.campaign, result.outlet);
     return result;
   }
 
@@ -164,6 +165,7 @@ export class LoyaltyService {
     pointsEarned: number,
     totalPoints: number,
     campaign: string,
+    outlet?: string,
   ) {
     // Fire-and-forget: never let a notification failure surface as an
     // unhandled rejection or affect the redemption response.
@@ -176,7 +178,8 @@ export class LoyaltyService {
 
       const name = user.firstName ?? 'Customer';
       const title = `You earned ${pointsEarned} points!`;
-      const body = `Hi ${name}, you just earned ${pointsEarned} pts from the ${campaign} campaign. Total: ${totalPoints} pts. Keep redeeming to climb the leaderboard!`;
+      const outletText = outlet ? ` at ${outlet}` : '';
+      const body = `Hi ${name}, you just earned ${pointsEarned} pts from the ${campaign} campaign${outletText}. Total: ${totalPoints} pts. Keep redeeming to climb the leaderboard!`;
 
       await Promise.allSettled([
         this.notifications.dispatch(userId, 'IN_APP', title, body),
@@ -184,7 +187,7 @@ export class LoyaltyService {
           ? this.notifications.dispatch(userId, 'EMAIL', title, body)
           : Promise.resolve(),
         user.phone
-          ? this.notifications.dispatch(userId, 'SMS', title, `Amstel Rewards: You earned ${pointsEarned} pts! Total: ${totalPoints} pts. ${campaign}.`)
+          ? this.notifications.dispatch(userId, 'SMS', title, `Amstel Rewards: You earned ${pointsEarned} pts! Total: ${totalPoints} pts. ${campaign}${outletText}.`)
           : Promise.resolve(),
       ]);
     } catch {
@@ -233,6 +236,8 @@ export class LoyaltyService {
       id: t.id,
       type: t.type.toLowerCase(),
       description: t.description ?? t.campaign?.name ?? t.outlet?.name,
+      campaign: t.campaign?.name ?? null,
+      outlet: t.outlet?.name ?? null,
       points: t.points,
       balance: Number(t.balanceAfter),
       createdAt: t.createdAt.toISOString(),

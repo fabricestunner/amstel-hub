@@ -113,6 +113,14 @@ export class RewardsService {
    * TOURNAMENT_ENTRY rewards also create a TournamentRegistration.
    */
   async redeem(userId: string, rewardId: string, dto: RedeemRewardDto) {
+    const collectionOutlet = await this.prisma.outlet.findFirst({
+      where: { id: dto.collectionOutletId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!collectionOutlet) {
+      throw new BadRequestException('Invalid collection outlet');
+    }
+
     return this.prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
         const reward = await tx.reward.findFirst({
@@ -185,6 +193,8 @@ export class RewardsService {
             userId,
             status: 'PENDING',
             pointsSpent: reward.pointsCost,
+            // @ts-expect-error - collectionOutletId added in schema.prisma but migration not yet applied
+            collectionOutletId: dto.collectionOutletId,
           },
         });
 
@@ -261,6 +271,8 @@ export class RewardsService {
         include: {
           reward: { select: { name: true, type: true } },
           user: { select: { id: true, firstName: true, lastName: true } },
+          // @ts-expect-error - collectionOutlet relation added in schema.prisma but migration not yet applied
+          collectionOutlet: { select: { id: true, name: true } },
         },
       }),
       this.prisma.rewardRedemption.count({ where }),

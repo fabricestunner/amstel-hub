@@ -1,13 +1,20 @@
 'use client';
 
+import { useState } from 'react';
 import { Trophy } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { DataTable } from '@/components/ui/data-table';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
-import { Tournament, useTournaments } from '@/features/tournaments/use-tournaments';
+import {
+  Tournament,
+  TournamentRegistrant,
+  useTournamentRegistrants,
+  useTournaments,
+} from '@/features/tournaments/use-tournaments';
 
 function formatDate(value?: string) {
   if (!value) return 'TBD';
@@ -15,8 +22,27 @@ function formatDate(value?: string) {
   return Number.isNaN(d.getTime()) ? 'TBD' : d.toLocaleDateString();
 }
 
+function RegistrantsView({ tournamentId }: { tournamentId: string }) {
+  const { data: registrants, isLoading } = useTournamentRegistrants(tournamentId);
+
+  return (
+    <DataTable
+      isLoading={isLoading}
+      rows={registrants ?? []}
+      columns={[
+        { key: 'userName', header: 'Name' },
+        { key: 'outletName', header: 'Outlet', render: (r: TournamentRegistrant) => r.outletName ?? '—' },
+        { key: 'pointsSpent', header: 'Points', render: (r: TournamentRegistrant) => r.pointsSpent.toLocaleString() },
+        { key: 'status', header: 'Status', render: (r: TournamentRegistrant) => <Badge variant="outline" className="capitalize">{r.status.toLowerCase()}</Badge> },
+        { key: 'registeredAt', header: 'Registered', render: (r: TournamentRegistrant) => formatDate(r.registeredAt) },
+      ]}
+    />
+  );
+}
+
 export default function OutletTournamentsPage() {
   const { data: tournaments, isLoading } = useTournaments();
+  const [registrantsId, setRegistrantsId] = useState<string | null>(null);
 
   return (
     <div className="space-y-6">
@@ -58,11 +84,36 @@ export default function OutletTournamentsPage() {
                   header: 'Starts',
                   render: (r: Tournament) => formatDate(r.startDate),
                 },
+                {
+                  key: 'actions',
+                  header: '',
+                  render: (r: Tournament) => (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setRegistrantsId(registrantsId === r.id ? null : r.id)
+                        }
+                      >
+                        {registrantsId === r.id ? 'Close' : 'View registrants'}
+                      </Button>
+                    </div>
+                  ),
+                },
               ]}
             />
           )}
         </CardContent>
       </Card>
+
+      {registrantsId && (
+        <Card>
+          <CardContent className="pt-6">
+            <RegistrantsView tournamentId={registrantsId} />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

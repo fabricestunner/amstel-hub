@@ -355,6 +355,27 @@ export class OutletsService {
   }
 
   /**
+   * Returns distinct outlets where a customer has previously scanned codes.
+   * Used for tournament registration outlet selection.
+   */
+  async listCustomerOutlets(userId: string) {
+    const redemptions = await this.prisma.codeRedemption.findMany({
+      where: { userId },
+      select: { outletId: true },
+      distinct: ['outletId'],
+    });
+    const outletIds = redemptions.map((r) => r.outletId).filter(Boolean) as string[];
+    if (outletIds.length === 0) return [];
+
+    const outlets = await this.prisma.outlet.findMany({
+      where: { id: { in: outletIds }, deletedAt: null },
+      select: { id: true, name: true, code: true },
+      orderBy: { name: 'asc' },
+    });
+    return outlets;
+  }
+
+  /**
    * Turns the Prisma write errors this endpoint can actually provoke into
    * user-facing 4xx. Without this they surface as an opaque 500: `code` and
    * `managerId` are both unique, and the geo ids arrive straight from the
