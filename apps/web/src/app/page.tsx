@@ -108,7 +108,8 @@ export default function HomePage() {
           <h1 className="sr-only">
             Earn. Play. Win. — Loyal Friends of Amstel Rewards
           </h1>
-          <div className="relative mx-auto w-full max-w-[860px]">
+          {/* Mobile: portrait artwork */}
+          <div className="relative mx-auto w-full max-w-[640px] sm:hidden">
             <Image
               src="/loyal-friends-hero.jpeg"
               alt="Loyal Friends of Amstel Pool Tournament — buy Amstel, collect points, and trade them for free beer, vouchers and pool tournament entries."
@@ -117,26 +118,42 @@ export default function HomePage() {
               priority
               className="h-auto w-full"
             />
-
             <div className="absolute left-[36%] right-[3%] top-[26%] flex justify-center">
               <span className="w-full rounded-full bg-white/15 px-4 py-[1.4%] text-center text-[clamp(0.7rem,2.6vw,1.2rem)] font-bold text-white shadow-sm backdrop-blur-[2px]">
                 Loyal Friends of Amstel Rewards
               </span>
             </div>
+          </div>
 
-            {/* CTAs over the artwork's empty red bottom-right area — sm: and
-                up only; at phone widths this zone is too small and would
-                cover the baked-in copy. */}
-            <div className="absolute bottom-[3.5%] right-[5%] hidden w-[42%] flex-col gap-3 sm:flex">
+          {/* sm+ : landscape artwork, badge centered under the headline and
+              CTAs side-by-side over the empty red bottom-right area, per the
+              client mockup. */}
+          <div className="relative mx-auto hidden w-full max-w-[1760px] sm:block">
+            <Image
+              src="/loyal-friends-hero-wide.jpeg"
+              alt="Loyal Friends of Amstel Pool Tournament — buy Amstel, collect points, and trade them for free beer, vouchers and pool tournament entries."
+              width={1600}
+              height={558}
+              priority
+              className="h-auto w-full"
+            />
+
+            <div className="absolute left-[40%] right-[40%] top-[25%] flex justify-center">
+              <span className="w-full whitespace-nowrap rounded-full bg-white/15 px-[1em] py-[0.4em] text-center text-[clamp(0.6rem,1.05vw,1.05rem)] font-bold text-white shadow-sm backdrop-blur-[2px]">
+                Loyal Friends of Amstel Rewards
+              </span>
+            </div>
+
+            <div className="absolute bottom-[8%] right-[7%] flex items-center gap-[clamp(0.5rem,1.5vw,1.5rem)]">
               <SmartRedeemButton
                 size="default"
-                className="w-full bg-amstel-gold font-bold text-white shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]"
+                className="bg-amstel-gold px-[clamp(1rem,2.5vw,2.5rem)] font-bold text-white shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]"
               >
                 Scan a code <ArrowRight className="h-4 w-4" />
               </SmartRedeemButton>
               <Button
                 asChild
-                className="w-full border border-white/30 bg-[#f6323c] font-bold text-white transition-colors duration-200 hover:bg-[#d81720]"
+                className="border border-white/30 bg-[#f6323c] px-[clamp(1rem,2.5vw,2.5rem)] font-bold text-white transition-colors duration-200 hover:bg-[#d81720]"
               >
                 <Link href="/register">Join Friends of Amstel</Link>
               </Button>
