@@ -198,6 +198,8 @@ export class OutletsService {
       tournamentEntries,
       recentCustomers,
       campaignGroups,
+      rewardRedemptionAgg,
+      recentRewards,
     ] = await Promise.all([
       // Points generated at this outlet is the sum of points from every code
       // redeemed here — derived live so it always reflects real redemptions
@@ -234,6 +236,31 @@ export class OutletsService {
         _count: { _all: true },
         _sum: { points: true },
       }),
+      // Points customers spent redeeming rewards collected at this outlet.
+      this.prisma.rewardRedemption.aggregate({
+        where: {
+          collectionOutletId: id,
+          status: { in: ['APPROVED', 'FULFILLED'] },
+        },
+        _sum: { pointsSpent: true },
+        _count: { _all: true },
+      }),
+      this.prisma.rewardRedemption.findMany({
+        where: {
+          collectionOutletId: id,
+          status: { in: ['APPROVED', 'FULFILLED'] },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          pointsSpent: true,
+          status: true,
+          createdAt: true,
+          reward: { select: { name: true } },
+          user: { select: { firstName: true, lastName: true } },
+        },
+      }),
     ]);
 
     const campaignIds = campaignGroups
@@ -269,6 +296,16 @@ export class OutletsService {
       customersRegistered,
       tournamentEntries,
       campaignPerformance,
+      pointsRedeemed: rewardRedemptionAgg._sum.pointsSpent ?? 0,
+      rewardsEarned: rewardRedemptionAgg._count._all,
+      recentRewards: recentRewards.map((r) => ({
+        id: r.id,
+        rewardName: r.reward?.name ?? '—',
+        customerName: [r.user?.firstName, r.user?.lastName].filter(Boolean).join(' ') || '—',
+        pointsSpent: r.pointsSpent,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+      })),
       recentCustomers: recentCustomers.map((c) => ({
         id: c.id,
         name: [c.firstName, c.lastName].filter(Boolean).join(' ') || c.id,

@@ -176,7 +176,7 @@ export default function OutletCustomersPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <History className="h-5 w-5 text-amstel-gold" />
-            Redemption history
+            Scanning history
           </CardTitle>
           <CardDescription>
             Every code your customers scanned at this outlet, with points earned.
@@ -186,8 +186,8 @@ export default function OutletCustomersPage() {
           {!redemptionsLoading && (redemptions?.items ?? []).length === 0 ? (
             <EmptyState
               icon={<History className="h-10 w-10" />}
-              title="No redemptions yet"
-              description="Customer code redemptions at your outlet will appear here."
+              title="No scans yet"
+              description="Customer code scans at your outlet will appear here."
             />
           ) : (
             <DataTable

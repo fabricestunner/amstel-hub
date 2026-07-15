@@ -50,6 +50,15 @@ export interface OutletDashboard {
     redemptions: number;
     points: number;
   }[];
+  pointsRedeemed?: number;
+  recentRewards?: {
+    id: string;
+    rewardName: string;
+    customerName: string;
+    pointsSpent: number;
+    status: string;
+    createdAt?: string;
+  }[];
   pointsTrend?: { name: string; value: number }[];
   recentCustomers?: {
     id: string;

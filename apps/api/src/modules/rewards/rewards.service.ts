@@ -213,6 +213,7 @@ export class RewardsService {
           data: {
             userId,
             campaignId: reward.campaignId,
+            outletId: dto.collectionOutletId,
             type: 'REDEEM',
             status: 'COMPLETED',
             points: -reward.pointsCost,
@@ -297,8 +298,8 @@ export class RewardsService {
 
   /**
    * Admins can fulfill any redemption. An OUTLET_MANAGER may only fulfill
-   * redemptions collected at their own outlet, and only once an admin has
-   * APPROVED them (the PENDING -> APPROVED step stays admin-only).
+   * redemptions collected at their own outlet; they can move a redemption
+   * straight from PENDING to FULFILLED when the customer picks it up.
    */
   async fulfill(id: string, user: AuthenticatedUser) {
     if (user.role === 'OUTLET_MANAGER') {
@@ -315,9 +316,9 @@ export class RewardsService {
           'Redemption is not assigned to your outlet',
         );
       }
-      if (redemption.status !== 'APPROVED') {
+      if (redemption.status !== 'PENDING' && redemption.status !== 'APPROVED') {
         throw new BadRequestException(
-          'Only approved redemptions can be fulfilled',
+          'Only pending or approved redemptions can be fulfilled',
         );
       }
     }

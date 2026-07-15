@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
+import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
@@ -49,6 +50,20 @@ function formatDate(value?: string) {
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString();
 }
 
+function statusBadge(status?: string) {
+  const s = status?.toUpperCase?.() ?? status ?? '';
+  if (s === 'FULFILLED') {
+    return <Badge variant="success">Fulfilled</Badge>;
+  }
+  if (s === 'APPROVED') {
+    return <Badge variant="warning">Approved</Badge>;
+  }
+  if (s === 'PENDING') {
+    return <Badge variant="secondary">Pending</Badge>;
+  }
+  return <Badge variant="outline">{status}</Badge>;
+}
+
 export default function OutletDashboardPage() {
   const { data: me, isLoading: meLoading } = useMe();
   const outletId = me?.outletId ?? undefined;
@@ -76,7 +91,7 @@ export default function OutletDashboardPage() {
         description="Your outlet's performance and recent activity."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="National rank"
           value={data?.nationalRank ? `#${data.nationalRank}` : '—'}
@@ -106,6 +121,11 @@ export default function OutletDashboardPage() {
         <StatCard
           title="Rewards earned"
           value={stat(data?.rewardsEarned)}
+          icon={<Gift className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Points redeemed"
+          value={stat(data?.pointsRedeemed)}
           icon={<Gift className="h-5 w-5" />}
         />
       </div>
@@ -157,6 +177,42 @@ export default function OutletDashboardPage() {
                 key: 'points',
                 header: 'Points generated',
                 render: (r) => (r.points ?? 0).toLocaleString(),
+              },
+            ]}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Gift className="h-5 w-5 text-secondary" />
+            Recent reward redemptions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DataTable
+            isLoading={isLoading}
+            rows={data?.recentRewards ?? []}
+            emptyTitle="No reward redemptions yet"
+            emptyDescription="Rewards collected at your outlet will appear here."
+            columns={[
+              { key: 'rewardName', header: 'Reward' },
+              { key: 'customerName', header: 'Customer' },
+              {
+                key: 'pointsSpent',
+                header: 'Points spent',
+                render: (r) => (r.pointsSpent ?? 0).toLocaleString(),
+              },
+              {
+                key: 'status',
+                header: 'Status',
+                render: (r) => statusBadge(r.status),
+              },
+              {
+                key: 'createdAt',
+                header: 'Redeemed',
+                render: (r) => formatDate(r.createdAt),
               },
             ]}
           />

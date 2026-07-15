@@ -31,7 +31,11 @@ describe('CryptoService', () => {
   it('fails to decrypt tampered ciphertext (GCM auth tag)', () => {
     const cipher = crypto.encrypt('secret');
     const [iv, tag, data] = cipher.split(':');
-    const tampered = `${iv}:${tag}:${data.replace(/.$/, '0')}`;
+    // Flip the last hex nibble to a guaranteed-different value so the
+    // ciphertext always actually changes (replacing with a fixed char is a
+    // no-op 1 in 16 runs).
+    const last = data.slice(-1);
+    const tampered = `${iv}:${tag}:${data.slice(0, -1)}${last === '0' ? '1' : '0'}`;
     expect(() => crypto.decrypt(tampered)).toThrow();
   });
 });

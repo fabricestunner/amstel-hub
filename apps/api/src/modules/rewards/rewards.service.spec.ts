@@ -249,10 +249,21 @@ describe('RewardsService redemption outlet scoping', () => {
       );
     });
 
-    it('rejects an OUTLET_MANAGER fulfilling a redemption that is not APPROVED', async () => {
+    it('lets an OUTLET_MANAGER fulfill a PENDING redemption directly (customer picked it up)', async () => {
       const prisma = buildPrisma({
         id: 'rr-1',
         status: 'PENDING',
+        collectionOutletId: 'o1',
+      });
+      const svc = new RewardsService(prisma);
+      const res = await svc.fulfill('rr-1', outletManager);
+      expect(res.status).toBe('FULFILLED');
+    });
+
+    it('rejects an OUTLET_MANAGER fulfilling a rejected redemption', async () => {
+      const prisma = buildPrisma({
+        id: 'rr-1',
+        status: 'REJECTED',
         collectionOutletId: 'o1',
       });
       const svc = new RewardsService(prisma);

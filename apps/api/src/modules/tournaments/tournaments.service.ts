@@ -108,7 +108,7 @@ export class TournamentsService {
         entryPointsCost: dto.entryPoints ?? dto.entryPointsCost ?? 0,
         registrationDeadline: dto.registrationDeadline
           ? new Date(dto.registrationDeadline)
-          : new Date(dto.startDate ?? dto.startsAt ?? Date.now()),
+          : this.endOfDay(new Date(dto.startDate ?? dto.startsAt ?? Date.now())),
         startsAt: new Date(dto.startDate ?? dto.startsAt ?? Date.now()),
         endsAt: (dto.endDate ?? dto.endsAt)
           ? new Date((dto.endDate ?? dto.endsAt)!)
@@ -511,6 +511,13 @@ export class TournamentsService {
       status: r.status,
       registeredAt: r.createdAt,
     }));
+  }
+
+  /** Return the last millisecond of the given date (23:59:59.999). */
+  private endOfDay(date: Date): Date {
+    const d = new Date(date);
+    d.setHours(23, 59, 59, 999);
+    return d;
   }
 
   private async getDefaultCampaignId(): Promise<string> {
