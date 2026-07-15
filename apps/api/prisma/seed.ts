@@ -2,6 +2,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, createCipheriv, randomBytes } from 'node:crypto';
+import { seedLoyalFriendsCampaign } from './seeds/loyal-friends-campaign';
 
 const prisma = new PrismaClient();
 
@@ -203,6 +204,10 @@ async function main() {
       startsAt: new Date('2026-07-20'),
     },
   });
+
+  // ── Loyal Friends of Amstel (client production campaign) ────
+  const loyalFriends = await seedLoyalFriendsCampaign(prisma);
+  console.log(`   Loyal Friends campaign: ${loyalFriends.campaignId}`);
 
   console.log('✅ Seed complete.');
   console.log('   Admin login: admin@amstel.com / Password123!');

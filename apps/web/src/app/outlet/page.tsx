@@ -6,6 +6,7 @@ import {
   Coins,
   Gift,
   MapPin,
+  Package,
   Trophy,
   UserPlus,
 } from 'lucide-react';
@@ -112,6 +113,11 @@ export default function OutletDashboardPage() {
           title="Points generated"
           value={stat(data?.pointsGenerated)}
           icon={<Coins className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Crates (outlet points)"
+          value={stat(data?.crates)}
+          icon={<Package className="h-5 w-5" />}
         />
         <StatCard
           title="Customers registered"

@@ -24,6 +24,7 @@ export interface Outlet {
   status?: 'active' | 'inactive' | string;
   pointsGenerated?: number;
   customers?: number;
+  crates?: number;
   nationalRank?: number;
   regionalRank?: number;
 }
@@ -41,6 +42,7 @@ export interface OutletDashboard {
   regionalRank?: number;
   campaignSales?: number;
   pointsGenerated?: number;
+  crates?: number;
   customersRegistered?: number;
   rewardsEarned?: number;
   tournamentEntries?: number;

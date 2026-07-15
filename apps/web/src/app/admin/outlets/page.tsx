@@ -232,6 +232,11 @@ export default function AdminOutletsPage() {
                 render: (r: Outlet) => (r.pointsGenerated ?? 0).toLocaleString(),
               },
               {
+                key: 'crates',
+                header: 'Crates',
+                render: (r: Outlet) => (r.crates ?? 0).toLocaleString(),
+              },
+              {
                 key: 'status',
                 header: 'Status',
                 render: (r: Outlet) => (

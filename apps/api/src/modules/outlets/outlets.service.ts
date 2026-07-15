@@ -79,8 +79,11 @@ export class OutletsService {
    */
   private async redemptionStats(
     outletIds: string[],
-  ): Promise<Map<string, { points: number; customers: number }>> {
-    const stats = new Map<string, { points: number; customers: number }>();
+  ): Promise<Map<string, { points: number; customers: number; scans: number }>> {
+    const stats = new Map<
+      string,
+      { points: number; customers: number; scans: number }
+    >();
     if (outletIds.length === 0) return stats;
 
     const [pointsGroups, customerGroups] = await Promise.all([
@@ -88,6 +91,7 @@ export class OutletsService {
         by: ['outletId'],
         where: { outletId: { in: outletIds } },
         _sum: { points: true },
+        _count: { _all: true },
       }),
       this.prisma.codeRedemption.groupBy({
         by: ['outletId', 'userId'],
@@ -97,12 +101,20 @@ export class OutletsService {
 
     for (const g of pointsGroups) {
       if (!g.outletId) continue;
-      stats.set(g.outletId, { points: g._sum.points ?? 0, customers: 0 });
+      stats.set(g.outletId, {
+        points: g._sum.points ?? 0,
+        customers: 0,
+        scans: g._count._all,
+      });
     }
     // Each (outletId, userId) group is one distinct customer at that outlet.
     for (const g of customerGroups) {
       if (!g.outletId) continue;
-      const entry = stats.get(g.outletId) ?? { points: 0, customers: 0 };
+      const entry = stats.get(g.outletId) ?? {
+        points: 0,
+        customers: 0,
+        scans: 0,
+      };
       entry.customers += 1;
       stats.set(g.outletId, entry);
     }
@@ -293,6 +305,7 @@ export class OutletsService {
       campaignSales: Number(outlet.totalSales),
       pointsGenerated: redemptionAgg._sum.points ?? 0,
       redemptionsCount: redemptionAgg._count._all,
+      crates: Math.floor(redemptionAgg._count._all / 24),
       customersRegistered,
       tournamentEntries,
       campaignPerformance,
@@ -548,7 +561,7 @@ export class OutletsService {
       district?: { id: string; name: string } | null;
       [k: string]: unknown;
     },
-    stats?: { points: number; customers: number },
+    stats?: { points: number; customers: number; scans: number },
   ) {
     const { region, province, district, totalPoints, totalSales, customerCount, status, ...rest } = outlet;
     return {
@@ -561,6 +574,7 @@ export class OutletsService {
       // never updated and stay at 0.
       pointsGenerated: stats ? stats.points : Number(totalPoints),
       customers: stats ? stats.customers : customerCount,
+      crates: stats ? Math.floor(stats.scans / 24) : 0,
     };
   }
 }

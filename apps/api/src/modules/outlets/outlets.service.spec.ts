@@ -169,10 +169,10 @@ describe('OutletsService list aggregation', () => {
   function groupByMock() {
     return jest.fn().mockImplementation(({ by }: { by: string[] }) => {
       if (by.length === 1) {
-        // groupBy(['outletId']) — points sums
+        // groupBy(['outletId']) — points sums + scan counts
         return Promise.resolve([
-          { outletId: OUTLET_A, _sum: { points: 150 } },
-          { outletId: OUTLET_B, _sum: { points: 40 } },
+          { outletId: OUTLET_A, _sum: { points: 150 }, _count: { _all: 50 } },
+          { outletId: OUTLET_B, _sum: { points: 40 }, _count: { _all: 10 } },
         ]);
       }
       // groupBy(['outletId', 'userId']) — one row per distinct customer
@@ -212,10 +212,22 @@ describe('OutletsService list aggregation', () => {
     const result = await service.list(new ListOutletsDto(), admin);
 
     expect(result.items).toEqual([
-      expect.objectContaining({ id: OUTLET_A, pointsGenerated: 0, customers: 0 }),
-      expect.objectContaining({ id: OUTLET_B, pointsGenerated: 0, customers: 0 }),
+      expect.objectContaining({ id: OUTLET_A, pointsGenerated: 0, customers: 0, crates: 0 }),
+      expect.objectContaining({ id: OUTLET_B, pointsGenerated: 0, customers: 0, crates: 0 }),
     ]);
     // And the payload must still be JSON-serializable (BigInt must not leak).
     expect(() => JSON.stringify(result)).not.toThrow();
+  });
+
+  it('derives outlet crate points as floor(scans / 24)', async () => {
+    const service = new OutletsService(buildPrisma(groupByMock()));
+
+    const result = await service.list(new ListOutletsDto(), admin);
+
+    expect(result.items).toEqual([
+      // 50 scans → 2 crates; 10 scans → 0 crates.
+      expect.objectContaining({ id: OUTLET_A, crates: 2 }),
+      expect.objectContaining({ id: OUTLET_B, crates: 0 }),
+    ]);
   });
 });
