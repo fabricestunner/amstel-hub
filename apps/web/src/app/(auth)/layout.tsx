@@ -1,12 +1,9 @@
-import { Check } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
-const BENEFITS = [
-  'Earn a point for every two Amstels',
-  'Enter national pool tournaments',
-  'Win prizes and Amstel merch',
-];
+import { SmartRedeemButton } from '@/components/smart-redeem-button';
+import { Button } from '@/components/ui/button';
 
 export default function AuthLayout({
   children,
@@ -15,59 +12,47 @@ export default function AuthLayout({
 }) {
   return (
     <div className="flex min-h-screen">
-      {/* Left brand panel — hidden on mobile */}
-      <div className="relative hidden overflow-hidden bg-amstel-red md:flex md:w-[45%] md:flex-col md:items-center md:justify-center md:p-12 lg:w-1/2">
-        {/* Subtle diagonal stripe texture */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.06]"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%)',
-            backgroundSize: '20px 20px',
-          }}
-        />
+      {/* Left brand panel — hidden on mobile. Client campaign artwork; the
+          panel aspect (~8:9 on desktop) almost exactly matches the artwork
+          (1422×1600), so cover-fit shows it nearly uncropped. Badge pill and
+          CTAs are overlaid in the artwork's flat-red areas. */}
+      <div className="relative hidden overflow-hidden bg-[#EB1C24] md:block md:w-[45%] lg:w-1/2">
+        <h1 className="sr-only">
+          Earn. Play. Win. — Loyal Friends of Amstel Rewards
+        </h1>
+        <Link href="/" aria-label="Amstel Rewards home">
+          <Image
+            src="/loyal-friends-hero.jpeg"
+            alt="Loyal Friends of Amstel Pool Tournament — buy Amstel, collect points, and trade them for free beer, vouchers and pool tournament entries."
+            fill
+            priority
+            sizes="(min-width: 1024px) 50vw, 45vw"
+            className="object-cover"
+          />
+        </Link>
 
-        <div className="relative z-10 flex flex-col items-center text-center">
-          <Link href="/" aria-label="Amstel Rewards home">
-            <Image
-              src="/amstel-logo.jpg"
-              alt="Amstel Beer"
-              width={108}
-              height={108}
-              className="rounded-full shadow-2xl ring-4 ring-white/30 transition-transform duration-300 hover:scale-105"
-              priority
-            />
-          </Link>
-
-          <div className="mt-6 max-w-[18rem]">
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">
-              Loyal Friends of Amstel Rewards
-            </h1>
-          </div>
-
-          <div className="mt-8 space-y-1 leading-snug">
-            <p className="text-4xl font-extrabold text-white">Earn. Play.</p>
-            <p className="text-4xl font-extrabold text-amstel-gold">Win.</p>
-          </div>
-
-          <p className="mt-5 max-w-xs text-sm leading-relaxed text-white/75">
-            The Amstel rewards program in Rwanda. Buy Amstel, earn points, win
-            free beer and prizes.
-          </p>
-
-          <div className="mt-10 w-full max-w-xs space-y-3 text-left">
-            {BENEFITS.map((benefit) => (
-              <div key={benefit} className="flex items-start gap-3">
-                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amstel-gold/25">
-                  <Check className="h-3 w-3 text-amstel-gold" strokeWidth={3} />
-                </div>
-                <span className="text-sm text-white/90">{benefit}</span>
-              </div>
-            ))}
-          </div>
+        <div className="absolute left-[36%] right-[4%] top-[26%] flex justify-center">
+          <span className="w-full rounded-full bg-white/15 px-4 py-1.5 text-center text-[clamp(0.7rem,1.4vw,1.1rem)] font-bold text-white shadow-sm backdrop-blur-[2px]">
+            Loyal Friends of Amstel Rewards
+          </span>
         </div>
 
-        <p className="absolute bottom-6 text-xs text-white/30">
+        <div className="absolute bottom-[5%] right-[5%] flex w-[44%] flex-col gap-3">
+          <SmartRedeemButton
+            size="default"
+            className="w-full bg-amstel-gold font-bold text-white shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]"
+          >
+            Scan a code <ArrowRight className="h-4 w-4" />
+          </SmartRedeemButton>
+          <Button
+            asChild
+            className="w-full border border-white/30 bg-[#f6323c] font-bold text-white transition-colors duration-200 hover:bg-[#d81720]"
+          >
+            <Link href="/register">Join Friends of Amstel</Link>
+          </Button>
+        </div>
+
+        <p className="absolute bottom-2 left-4 text-xs text-white/40">
           © {new Date().getFullYear()} Amstel Rewards Platform
         </p>
       </div>

@@ -98,61 +98,65 @@ export default function HomePage() {
       </header>
 
       <main className="flex-1">
-        {/* Hero */}
-        <section className="relative overflow-hidden bg-amstel-red py-20 text-white md:py-28">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 opacity-[0.05]"
-            style={{
-              backgroundImage:
-                'repeating-linear-gradient(45deg, white 0, white 1px, transparent 0, transparent 50%)',
-              backgroundSize: '24px 24px',
-            }}
-          />
-
-          <div className="container relative z-10 flex flex-col items-center gap-7 text-center">
+        {/* Hero — client campaign artwork. The section background matches the
+            artwork's flat #EB1C24 canvas exactly, so the banner reads as
+            full-bleed at any viewport width without cropping the baked-in
+            headline and copy. Badge pill and CTAs are overlaid in the
+            artwork's empty red areas (percentage-anchored so they track the
+            image as it scales). */}
+        <section className="relative overflow-hidden bg-[#EB1C24]">
+          <h1 className="sr-only">
+            Earn. Play. Win. — Loyal Friends of Amstel Rewards
+          </h1>
+          <div className="relative mx-auto w-full max-w-[860px]">
             <Image
-              src="/amstel-logo.jpg"
-              alt="Amstel Beer"
-              width={132}
-              height={132}
-              className="rounded-full shadow-2xl ring-4 ring-white/30"
+              src="/loyal-friends-hero.jpeg"
+              alt="Loyal Friends of Amstel Pool Tournament — buy Amstel, collect points, and trade them for free beer, vouchers and pool tournament entries."
+              width={1422}
+              height={1600}
               priority
+              className="h-auto w-full"
             />
 
-            <Badge className="gap-1.5 border-white/25 bg-white/15 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm">
-              <Trophy className="h-3.5 w-3.5" /> Royal Friends of Amstel Rewards
-            </Badge>
-
-            <h1 className="max-w-4xl text-5xl font-black leading-[0.95] tracking-tight sm:text-6xl md:text-7xl">
-              Earn. Play.{' '}
-              <span className="relative inline-block">
-                Win.
-                <span
-                  aria-hidden
-                  className="absolute -bottom-1.5 left-0 right-0 h-1.5 rounded-full bg-amstel-gold"
-                />
+            <div className="absolute left-[36%] right-[3%] top-[26%] flex justify-center">
+              <span className="w-full rounded-full bg-white/15 px-4 py-[1.4%] text-center text-[clamp(0.7rem,2.6vw,1.2rem)] font-bold text-white shadow-sm backdrop-blur-[2px]">
+                Loyal Friends of Amstel Rewards
               </span>
-            </h1>
+            </div>
 
-            <p className="max-w-xl text-lg text-white/85">
-              Buy Amstel, collect points, and trade them for free beer,
-              vouchers and pool tournament entries.
-            </p>
-
-            <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-              <SmartRedeemButton className="bg-amstel-gold font-bold text-white shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]">
+            {/* CTAs over the artwork's empty red bottom-right area — sm: and
+                up only; at phone widths this zone is too small and would
+                cover the baked-in copy. */}
+            <div className="absolute bottom-[3.5%] right-[5%] hidden w-[42%] flex-col gap-3 sm:flex">
+              <SmartRedeemButton
+                size="default"
+                className="w-full bg-amstel-gold font-bold text-white shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]"
+              >
                 Scan a code <ArrowRight className="h-4 w-4" />
               </SmartRedeemButton>
               <Button
                 asChild
-                size="lg"
-                variant="outline"
-                className="border-white/40 bg-white/10 text-white transition-colors duration-200 hover:bg-white/20"
+                className="w-full border border-white/30 bg-[#f6323c] font-bold text-white transition-colors duration-200 hover:bg-[#d81720]"
               >
                 <Link href="/register">Join Friends of Amstel</Link>
               </Button>
             </div>
+          </div>
+
+          {/* Mobile CTAs: in-flow on the red band directly below the artwork */}
+          <div className="flex flex-col gap-2 px-6 pb-8 pt-3 sm:hidden">
+            <SmartRedeemButton
+              size="default"
+              className="w-full bg-amstel-gold font-bold text-white shadow-gold"
+            >
+              Scan a code <ArrowRight className="h-4 w-4" />
+            </SmartRedeemButton>
+            <Button
+              asChild
+              className="w-full border border-white/30 bg-[#f6323c] font-bold text-white"
+            >
+              <Link href="/register">Join Friends of Amstel</Link>
+            </Button>
           </div>
         </section>
 
