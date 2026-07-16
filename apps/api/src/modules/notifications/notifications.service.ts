@@ -85,6 +85,33 @@ export class NotificationsService {
     return notification;
   }
 
+  /**
+   * Fan a single customer-facing event out to every channel the customer can
+   * receive: IN_APP always, SMS when they have a phone, EMAIL when they have an
+   * email. Looks up the contact once. Resolves after all channels settle and
+   * never throws — safe to call fire-and-forget (`void this.notifyAllChannels`).
+   */
+  async notifyAllChannels(
+    userId: string,
+    opts: { title: string; body: string; smsBody?: string },
+  ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, phone: true },
+    });
+    if (!user) return;
+
+    await Promise.allSettled([
+      this.dispatch(userId, 'IN_APP', opts.title, opts.body),
+      user.email
+        ? this.dispatch(userId, 'EMAIL', opts.title, opts.body)
+        : Promise.resolve(),
+      user.phone
+        ? this.dispatch(userId, 'SMS', opts.title, opts.smsBody ?? opts.body)
+        : Promise.resolve(),
+    ]);
+  }
+
   async list(userId: string, query: ListNotificationsDto) {
     const where: Prisma.NotificationWhereInput = {
       userId,

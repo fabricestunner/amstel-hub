@@ -10,6 +10,7 @@ import { Prisma } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/decorators';
 import { paginate } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   CreateRewardDto,
   ListRedemptionsDto,
@@ -20,7 +21,10 @@ import {
 
 @Injectable()
 export class RewardsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   /** Public-ish catalog: ACTIVE rewards, paginated. */
   async list(query: ListRewardsDto) {
@@ -123,7 +127,7 @@ export class RewardsService {
       throw new BadRequestException('Invalid collection outlet');
     }
 
-    return this.prisma.$transaction(
+    const result = await this.prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
         const reward = await tx.reward.findFirst({
           where: { id: rewardId, deletedAt: null },
@@ -232,6 +236,111 @@ export class RewardsService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
+
+    // Fire-and-forget: the redemption is already committed. A notification
+    // failure must never surface to the caller or roll anything back.
+    void this.notifyRedeemed({
+      userId,
+      rewardId,
+      pointsSpent: result.pointsSpent,
+      availablePoints: result.availablePoints,
+      collectionOutletId: dto.collectionOutletId,
+      tournamentId: dto.tournamentId,
+    });
+
+    return result;
+  }
+
+  /** Notify a customer that they redeemed a reward (or entered a tournament). */
+  private async notifyRedeemed(params: {
+    userId: string;
+    rewardId: string;
+    pointsSpent: number;
+    availablePoints: number;
+    collectionOutletId: string;
+    tournamentId?: string;
+  }) {
+    try {
+      const [reward, outlet, tournament] = await Promise.all([
+        this.prisma.reward.findUnique({
+          where: { id: params.rewardId },
+          select: { name: true, type: true },
+        }),
+        this.prisma.outlet.findUnique({
+          where: { id: params.collectionOutletId },
+          select: { name: true },
+        }),
+        params.tournamentId
+          ? this.prisma.tournament.findUnique({
+              where: { id: params.tournamentId },
+              select: { name: true },
+            })
+          : Promise.resolve(null),
+      ]);
+      if (!reward) return;
+
+      if (reward.type === 'TOURNAMENT_ENTRY') {
+        const tName = tournament?.name ?? 'the tournament';
+        await this.notifications.notifyAllChannels(params.userId, {
+          title: "You're registered!",
+          body: `You're registered for ${tName}. ${params.pointsSpent} points spent — you have ${params.availablePoints} points left. Good luck!`,
+          smsBody: `Amstel Rewards: You're in ${tName}! ${params.pointsSpent} pts spent, ${params.availablePoints} left. Good luck!`,
+        });
+        return;
+      }
+
+      const where = outlet?.name ? ` Collect it at ${outlet.name}.` : '';
+      await this.notifications.notifyAllChannels(params.userId, {
+        title: 'Reward redeemed',
+        body: `You redeemed ${reward.name} for ${params.pointsSpent} points. You have ${params.availablePoints} points left.${where}`,
+        smsBody: `Amstel Rewards: You redeemed ${reward.name} for ${params.pointsSpent} pts. ${params.availablePoints} pts left.${where}`,
+      });
+    } catch {
+      // swallow — redemption already succeeded
+    }
+  }
+
+  /** Notify a customer that their redemption is ready to collect / handed over. */
+  private async notifyRedemptionStatus(
+    redemption: {
+      userId: string;
+      rewardId: string;
+      collectionOutletId: string | null;
+    },
+    status: 'APPROVED' | 'FULFILLED',
+  ) {
+    try {
+      const [reward, outlet] = await Promise.all([
+        this.prisma.reward.findUnique({
+          where: { id: redemption.rewardId },
+          select: { name: true },
+        }),
+        redemption.collectionOutletId
+          ? this.prisma.outlet.findUnique({
+              where: { id: redemption.collectionOutletId },
+              select: { name: true },
+            })
+          : Promise.resolve(null),
+      ]);
+      const rewardName = reward?.name ?? 'your reward';
+
+      if (status === 'APPROVED') {
+        const where = outlet?.name ? ` at ${outlet.name}` : '';
+        await this.notifications.notifyAllChannels(redemption.userId, {
+          title: 'Reward ready to collect',
+          body: `Good news! Your ${rewardName} is approved and ready to collect${where}.`,
+          smsBody: `Amstel Rewards: Your ${rewardName} is ready to collect${where}.`,
+        });
+      } else {
+        await this.notifications.notifyAllChannels(redemption.userId, {
+          title: 'Reward collected',
+          body: `Your ${rewardName} has been handed over. Enjoy!`,
+          smsBody: `Amstel Rewards: Your ${rewardName} has been handed over. Enjoy!`,
+        });
+      }
+    } catch {
+      // swallow — the status change already succeeded
+    }
   }
 
   /** The current customer's own claimed rewards, paginated. */
@@ -334,7 +443,7 @@ export class RewardsService {
       where: { id },
     });
     if (!redemption) throw new NotFoundException('Redemption not found');
-    return this.prisma.rewardRedemption.update({
+    const updated = await this.prisma.rewardRedemption.update({
       where: { id },
       data: {
         status,
@@ -342,5 +451,13 @@ export class RewardsService {
         ...(status === 'FULFILLED' ? { fulfilledAt: new Date() } : {}),
       },
     });
+
+    // Tell the customer their reward is ready / handed over. REJECTED stays
+    // silent (no auto-refund, nothing actionable to announce). Fire-and-forget.
+    if (status === 'APPROVED' || status === 'FULFILLED') {
+      void this.notifyRedemptionStatus(redemption, status);
+    }
+
+    return updated;
   }
 }

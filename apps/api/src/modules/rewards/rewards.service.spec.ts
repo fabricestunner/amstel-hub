@@ -7,8 +7,23 @@ import {
 
 import { AuthenticatedUser } from '../../common/decorators';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { ListRedemptionsDto } from './dto/reward.dto';
 import { RewardsService } from './rewards.service';
+
+function notificationsStub(): NotificationsService {
+  return {
+    notifyAllChannels: jest.fn().mockResolvedValue(undefined),
+  } as unknown as NotificationsService;
+}
+
+/** Construct the service with a no-op notifications stub unless one is given. */
+function makeService(
+  prisma: PrismaService,
+  notifications: NotificationsService = notificationsStub(),
+) {
+  return new RewardsService(prisma, notifications);
+}
 
 /**
  * Unit tests for reward redemption guards. Prisma is mocked; we assert the
@@ -75,7 +90,7 @@ describe('RewardsService.redeem', () => {
   };
 
   it('throws when collection outlet is invalid', async () => {
-    const svc = new RewardsService(
+    const svc = makeService(
       buildPrisma({ reward: activeReward, outlet: null }),
     );
     await expect(svc.redeem('u1', 'r1', dto)).rejects.toThrow(
@@ -84,12 +99,12 @@ describe('RewardsService.redeem', () => {
   });
 
   it('throws when reward does not exist', async () => {
-    const svc = new RewardsService(buildPrisma({ reward: null }));
+    const svc = makeService(buildPrisma({ reward: null }));
     await expect(svc.redeem('u1', 'r1', dto)).rejects.toThrow(NotFoundException);
   });
 
   it('throws when reward is not ACTIVE', async () => {
-    const svc = new RewardsService(
+    const svc = makeService(
       buildPrisma({ reward: { ...activeReward, status: 'INACTIVE' } }),
     );
     await expect(svc.redeem('u1', 'r1', dto)).rejects.toThrow(
@@ -98,21 +113,21 @@ describe('RewardsService.redeem', () => {
   });
 
   it('throws when out of stock', async () => {
-    const svc = new RewardsService(
+    const svc = makeService(
       buildPrisma({ reward: { ...activeReward, remainingInventory: 0 } }),
     );
     await expect(svc.redeem('u1', 'r1', dto)).rejects.toThrow(ConflictException);
   });
 
   it('throws when per-user limit reached', async () => {
-    const svc = new RewardsService(
+    const svc = makeService(
       buildPrisma({ reward: activeReward, priorClaims: 1 }),
     );
     await expect(svc.redeem('u1', 'r1', dto)).rejects.toThrow(ConflictException);
   });
 
   it('throws when tournament entry has no tournamentId', async () => {
-    const svc = new RewardsService(
+    const svc = makeService(
       buildPrisma({ reward: { ...activeReward, type: 'TOURNAMENT_ENTRY' } }),
     );
     await expect(svc.redeem('u1', 'r1', dto)).rejects.toThrow(
@@ -121,7 +136,7 @@ describe('RewardsService.redeem', () => {
   });
 
   it('throws when wallet has insufficient points', async () => {
-    const svc = new RewardsService(
+    const svc = makeService(
       buildPrisma({ reward: activeReward, wallet: { availablePoints: 100n } }),
     );
     await expect(svc.redeem('u1', 'r1', dto)).rejects.toThrow(
@@ -130,7 +145,7 @@ describe('RewardsService.redeem', () => {
   });
 
   it('debits the wallet on the happy path', async () => {
-    const svc = new RewardsService(buildPrisma({ reward: activeReward }));
+    const svc = makeService(buildPrisma({ reward: activeReward }));
     const res = await svc.redeem('u1', 'r1', dto);
     expect(res.pointsSpent).toBe(500);
     expect(res.availablePoints).toBe(500);
@@ -183,7 +198,7 @@ describe('RewardsService redemption outlet scoping', () => {
   describe('listRedemptions', () => {
     it('does not restrict admins', async () => {
       const prisma = buildPrisma(null);
-      const svc = new RewardsService(prisma);
+      const svc = makeService(prisma);
       await svc.listRedemptions(listQuery, admin);
       const args = (prisma.rewardRedemption.findMany as jest.Mock).mock
         .calls[0][0];
@@ -192,7 +207,7 @@ describe('RewardsService redemption outlet scoping', () => {
 
     it('force-filters OUTLET_MANAGER to their outlet', async () => {
       const prisma = buildPrisma(null);
-      const svc = new RewardsService(prisma);
+      const svc = makeService(prisma);
       await svc.listRedemptions(listQuery, outletManager);
       const args = (prisma.rewardRedemption.findMany as jest.Mock).mock
         .calls[0][0];
@@ -201,7 +216,7 @@ describe('RewardsService redemption outlet scoping', () => {
 
     it('matches nothing when an OUTLET_MANAGER has no outlet', async () => {
       const prisma = buildPrisma(null);
-      const svc = new RewardsService(prisma);
+      const svc = makeService(prisma);
       await svc.listRedemptions(listQuery, {
         ...outletManager,
         outletId: null,
@@ -219,7 +234,7 @@ describe('RewardsService redemption outlet scoping', () => {
         status: 'APPROVED',
         collectionOutletId: 'other-outlet',
       });
-      const svc = new RewardsService(prisma);
+      const svc = makeService(prisma);
       const res = await svc.fulfill('rr-1', admin);
       expect(res.status).toBe('FULFILLED');
       expect(res.approvedById).toBe('admin-1');
@@ -231,7 +246,7 @@ describe('RewardsService redemption outlet scoping', () => {
         status: 'APPROVED',
         collectionOutletId: 'o1',
       });
-      const svc = new RewardsService(prisma);
+      const svc = makeService(prisma);
       const res = await svc.fulfill('rr-1', outletManager);
       expect(res.status).toBe('FULFILLED');
       expect(res.approvedById).toBe('mgr-1');
@@ -243,7 +258,7 @@ describe('RewardsService redemption outlet scoping', () => {
         status: 'APPROVED',
         collectionOutletId: 'other-outlet',
       });
-      const svc = new RewardsService(prisma);
+      const svc = makeService(prisma);
       await expect(svc.fulfill('rr-1', outletManager)).rejects.toThrow(
         ForbiddenException,
       );
@@ -255,7 +270,7 @@ describe('RewardsService redemption outlet scoping', () => {
         status: 'PENDING',
         collectionOutletId: 'o1',
       });
-      const svc = new RewardsService(prisma);
+      const svc = makeService(prisma);
       const res = await svc.fulfill('rr-1', outletManager);
       expect(res.status).toBe('FULFILLED');
     });
@@ -266,7 +281,7 @@ describe('RewardsService redemption outlet scoping', () => {
         status: 'REJECTED',
         collectionOutletId: 'o1',
       });
-      const svc = new RewardsService(prisma);
+      const svc = makeService(prisma);
       await expect(svc.fulfill('rr-1', outletManager)).rejects.toThrow(
         BadRequestException,
       );
@@ -274,10 +289,192 @@ describe('RewardsService redemption outlet scoping', () => {
 
     it('404s when the redemption does not exist', async () => {
       const prisma = buildPrisma(null);
-      const svc = new RewardsService(prisma);
+      const svc = makeService(prisma);
       await expect(svc.fulfill('missing', outletManager)).rejects.toThrow(
         NotFoundException,
       );
     });
+  });
+});
+
+/**
+ * Reward lifecycle notifications. Redeeming a reward and moving a redemption to
+ * APPROVED/FULFILLED must notify the customer across their channels, without the
+ * notification affecting the redemption result (fire-and-forget). REJECTED is
+ * intentionally silent.
+ */
+describe('RewardsService notifications', () => {
+  /** Drain the microtask + macrotask queue so fire-and-forget notifies run. */
+  const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+  const admin: AuthenticatedUser = {
+    id: 'admin-1',
+    role: 'SUPER_ADMIN',
+    regionId: null,
+    outletId: null,
+    permissions: [],
+  };
+
+  const activeReward = {
+    id: 'r1',
+    status: 'ACTIVE',
+    type: 'MERCHANDISE',
+    pointsCost: 500,
+    perUserLimit: 1,
+    remainingInventory: 10,
+    validFrom: null,
+    validUntil: null,
+    campaignId: 'c1',
+    name: 'Amstel Cooler',
+  };
+
+  function buildRedeemPrisma(reward: Record<string, unknown>): PrismaService {
+    const tx = {
+      reward: {
+        findFirst: jest.fn().mockResolvedValue(reward),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      rewardRedemption: {
+        count: jest.fn().mockResolvedValue(0),
+        create: jest.fn().mockResolvedValue({ id: 'rr-1', status: 'PENDING' }),
+      },
+      wallet: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ availablePoints: 1000n, redeemedPoints: 0n }),
+        update: jest.fn().mockResolvedValue({ availablePoints: 500n }),
+      },
+      tournamentRegistration: { create: jest.fn().mockResolvedValue({}) },
+      pointsTransaction: { create: jest.fn().mockResolvedValue({}) },
+    };
+    return {
+      // redeem() outlet guard + notify-path reads (top-level, not tx)
+      outlet: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'o1' }),
+        findUnique: jest.fn().mockResolvedValue({ name: 'Kigali Bar' }),
+      },
+      reward: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ name: reward.name, type: reward.type }),
+      },
+      tournament: {
+        findUnique: jest.fn().mockResolvedValue({ name: 'Amstel Cup' }),
+      },
+      $transaction: jest.fn((cb: (t: typeof tx) => unknown) => cb(tx)),
+    } as unknown as PrismaService;
+  }
+
+  it('notifies the customer when a reward is redeemed', async () => {
+    const notifications = notificationsStub();
+    const svc = makeService(buildRedeemPrisma(activeReward), notifications);
+
+    await svc.redeem('u1', 'r1', { collectionOutletId: 'o1' });
+    await flush();
+
+    expect(notifications.notifyAllChannels).toHaveBeenCalledTimes(1);
+    const [userId, payload] = (notifications.notifyAllChannels as jest.Mock).mock
+      .calls[0];
+    expect(userId).toBe('u1');
+    expect(payload.body).toContain('Amstel Cooler');
+    expect(payload.body).toContain('Kigali Bar');
+  });
+
+  it('confirms tournament registration for a tournament-entry reward', async () => {
+    const notifications = notificationsStub();
+    const reward = { ...activeReward, type: 'TOURNAMENT_ENTRY' };
+    const svc = makeService(buildRedeemPrisma(reward), notifications);
+
+    await svc.redeem('u1', 'r1', {
+      collectionOutletId: 'o1',
+      tournamentId: 't1',
+    });
+    await flush();
+
+    expect(notifications.notifyAllChannels).toHaveBeenCalledTimes(1);
+    const payload = (notifications.notifyAllChannels as jest.Mock).mock
+      .calls[0][1];
+    expect(payload.body).toContain('Amstel Cup');
+  });
+
+  it('still succeeds when the notification fails', async () => {
+    const notifications = notificationsStub();
+    (notifications.notifyAllChannels as jest.Mock).mockRejectedValue(
+      new Error('sms provider down'),
+    );
+    const svc = makeService(buildRedeemPrisma(activeReward), notifications);
+
+    const res = await svc.redeem('u1', 'r1', { collectionOutletId: 'o1' });
+    await flush();
+
+    expect(res.status).toBe('PENDING');
+    expect(res.pointsSpent).toBe(500);
+  });
+
+  function buildStatusPrisma(status: string): {
+    prisma: PrismaService;
+    redemption: Record<string, unknown>;
+  } {
+    const redemption = {
+      id: 'rr-1',
+      userId: 'u1',
+      rewardId: 'r1',
+      collectionOutletId: 'o1',
+      status,
+    };
+    const prisma = {
+      rewardRedemption: {
+        findUnique: jest.fn().mockResolvedValue(redemption),
+        update: jest
+          .fn()
+          .mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+            Promise.resolve({ id: 'rr-1', ...data }),
+          ),
+      },
+      reward: {
+        findUnique: jest.fn().mockResolvedValue({ name: 'Amstel Cooler' }),
+      },
+      outlet: {
+        findUnique: jest.fn().mockResolvedValue({ name: 'Kigali Bar' }),
+      },
+    } as unknown as PrismaService;
+    return { prisma, redemption };
+  }
+
+  it('notifies the customer when a redemption is approved', async () => {
+    const notifications = notificationsStub();
+    const { prisma } = buildStatusPrisma('PENDING');
+    const svc = makeService(prisma, notifications);
+
+    await svc.approve('rr-1', admin.id);
+    await flush();
+
+    expect(notifications.notifyAllChannels).toHaveBeenCalledTimes(1);
+    const [userId, payload] = (notifications.notifyAllChannels as jest.Mock).mock
+      .calls[0];
+    expect(userId).toBe('u1');
+    expect(payload.body).toContain('Amstel Cooler');
+  });
+
+  it('notifies the customer when a redemption is fulfilled', async () => {
+    const notifications = notificationsStub();
+    const { prisma } = buildStatusPrisma('APPROVED');
+    const svc = makeService(prisma, notifications);
+
+    await svc.fulfill('rr-1', admin);
+    await flush();
+
+    expect(notifications.notifyAllChannels).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT notify the customer when a redemption is rejected', async () => {
+    const notifications = notificationsStub();
+    const { prisma } = buildStatusPrisma('PENDING');
+    const svc = makeService(prisma, notifications);
+
+    await svc.reject('rr-1', admin.id);
+    await flush();
+
+    expect(notifications.notifyAllChannels).not.toHaveBeenCalled();
   });
 });
