@@ -155,6 +155,18 @@ export function useUpdateReward() {
   });
 }
 
+export function useDeleteReward() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete<void>(`/rewards/${id}`),
+    onSuccess: () => {
+      toast.success('Reward deleted');
+      qc.invalidateQueries({ queryKey: ['rewards'] });
+    },
+    onError: (err: Error) => toast.error(err.message || 'Could not delete reward'),
+  });
+}
+
 function useRedemptionAction(
   action: 'approve' | 'reject' | 'fulfill',
   successMsg: string,

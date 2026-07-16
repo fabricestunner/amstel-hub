@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -27,6 +27,7 @@ import {
   RewardRedemption,
   useApproveRedemption,
   useCreateReward,
+  useDeleteReward,
   useFulfillRedemption,
   useRejectRedemption,
   useRewardRedemptions,
@@ -61,8 +62,10 @@ function CatalogTab() {
   const { data: rewards, isLoading } = useRewards();
   const create = useCreateReward();
   const update = useUpdateReward();
+  const deleteReward = useDeleteReward();
   const [editing, setEditing] = useState<Reward | null>(null);
   const [open, setOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Reward | null>(null);
 
   const {
     register,
@@ -92,6 +95,13 @@ function CatalogTab() {
     } else {
       create.mutate(values, { onSuccess: () => setOpen(false) });
     }
+  }
+
+  function onDelete() {
+    if (!deleteTarget) return;
+    deleteReward.mutate(deleteTarget.id, {
+      onSuccess: () => setDeleteTarget(null),
+    });
   }
 
   return (
@@ -133,7 +143,7 @@ function CatalogTab() {
                 key: 'actions',
                 header: '',
                 render: (r: Reward) => (
-                  <div className="flex justify-end">
+                  <div className="flex justify-end gap-2">
                     <Button
                       variant="outline"
                       size="sm"
@@ -143,6 +153,13 @@ function CatalogTab() {
                       }}
                     >
                       Edit
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setDeleteTarget(r)}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 ),
@@ -213,6 +230,34 @@ function CatalogTab() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete reward?</DialogTitle>
+            <DialogDescription>
+              <strong>{deleteTarget?.name}</strong> will be soft-deleted and
+              removed from the customer catalog. This cannot be undone from
+              the UI.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteReward.isPending}
+              onClick={onDelete}
+            >
+              {deleteReward.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
