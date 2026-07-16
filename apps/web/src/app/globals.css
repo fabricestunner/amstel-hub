@@ -13,7 +13,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 9%;
 
-    --primary: 349 88% 43%; /* Amstel red #C8102E */
+    --primary: 356 85% 52%; /* Campaign red #EB1C24 */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 43 74% 49%; /* gold #D4A017 */
@@ -30,7 +30,7 @@
 
     --border: 0 0% 90%;
     --input: 0 0% 90%;
-    --ring: 349 88% 43%;
+    --ring: 356 85% 52%;
 
     --radius: 0.65rem;
   }
@@ -45,7 +45,7 @@
     --popover: 0 0% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 349 88% 52%;
+    --primary: 356 85% 58%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 43 74% 52%;
@@ -62,7 +62,7 @@
 
     --border: 0 0% 17%;
     --input: 0 0% 17%;
-    --ring: 349 88% 52%;
+    --ring: 356 85% 58%;
   }
 }
 
@@ -97,7 +97,7 @@
     background-image: linear-gradient(
       135deg,
       hsl(var(--primary)) 0%,
-      hsl(349 80% 32%) 45%,
+      hsl(356 85% 42%) 45%,
       hsl(var(--accent)) 100%
     );
   }

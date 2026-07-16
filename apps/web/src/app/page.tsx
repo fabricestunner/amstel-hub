@@ -98,13 +98,9 @@ export default function HomePage() {
       </header>
 
       <main className="flex-1">
-        {/* Hero — client campaign artwork. The section background matches the
-            artwork's flat #EB1C24 canvas exactly, so the banner reads as
-            full-bleed at any viewport width without cropping the baked-in
-            headline and copy. Badge pill and CTAs are overlaid in the
-            artwork's empty red areas (percentage-anchored so they track the
-            image as it scales). */}
-        <section className="relative overflow-hidden bg-[#EB1C24]">
+        {/* Hero campaign artwork. The red canvas matches the supplied artwork so
+            it remains full-bleed at every viewport width. */}
+        <section className="relative overflow-hidden bg-amstel-red">
           <h1 className="sr-only">
             Earn. Play. Win. — Loyal Friends of Amstel Rewards
           </h1>
@@ -113,36 +109,23 @@ export default function HomePage() {
             <Image
               src="/loyal-friends-hero.jpeg"
               alt="Loyal Friends of Amstel Pool Tournament — buy Amstel, collect points, and trade them for free beer, vouchers and pool tournament entries."
-              width={1422}
-              height={1600}
+              width={4001}
+              height={4501}
               priority
               className="h-auto w-full"
             />
-            <div className="absolute left-[36%] right-[3%] top-[26%] flex justify-center">
-              <span className="w-full rounded-full bg-white/15 px-4 py-[1.4%] text-center text-[clamp(0.7rem,2.6vw,1.2rem)] font-bold text-white shadow-sm backdrop-blur-[2px]">
-                Loyal Friends of Amstel Rewards
-              </span>
-            </div>
           </div>
 
-          {/* sm+ : landscape artwork, badge centered under the headline and
-              CTAs side-by-side over the empty red bottom-right area, per the
-              client mockup. */}
-          <div className="relative mx-auto hidden w-full max-w-[1760px] sm:block">
+          {/* sm+ : landscape artwork with CTAs in the open lower-right area. */}
+          <div className="relative mx-auto hidden w-full sm:block">
             <Image
               src="/loyal-friends-hero-wide.jpeg"
               alt="Loyal Friends of Amstel Pool Tournament — buy Amstel, collect points, and trade them for free beer, vouchers and pool tournament entries."
-              width={1600}
-              height={558}
+              width={8000}
+              height={2793}
               priority
               className="h-auto w-full"
             />
-
-            <div className="absolute left-[40%] right-[40%] top-[25%] flex justify-center">
-              <span className="w-full whitespace-nowrap rounded-full bg-white/15 px-[1em] py-[0.4em] text-center text-[clamp(0.6rem,1.05vw,1.05rem)] font-bold text-white shadow-sm backdrop-blur-[2px]">
-                Loyal Friends of Amstel Rewards
-              </span>
-            </div>
 
             <div className="absolute bottom-[8%] right-[7%] flex items-center gap-[clamp(0.5rem,1.5vw,1.5rem)]">
               <SmartRedeemButton
@@ -153,7 +136,7 @@ export default function HomePage() {
               </SmartRedeemButton>
               <Button
                 asChild
-                className="border border-white/30 bg-[#f6323c] px-[clamp(1rem,2.5vw,2.5rem)] font-bold text-white transition-colors duration-200 hover:bg-[#d81720]"
+                className="border border-white/30 bg-amstel-red px-[clamp(1rem,2.5vw,2.5rem)] font-bold text-white transition-colors duration-200 hover:bg-amstel-red-dark"
               >
                 <Link href="/register">Join Friends of Amstel</Link>
               </Button>
@@ -170,7 +153,7 @@ export default function HomePage() {
             </SmartRedeemButton>
             <Button
               asChild
-              className="w-full border border-white/30 bg-[#f6323c] font-bold text-white"
+              className="w-full border border-white/30 bg-amstel-red font-bold text-white hover:bg-amstel-red-dark"
             >
               <Link href="/register">Join Friends of Amstel</Link>
             </Button>

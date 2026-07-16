@@ -11,10 +11,10 @@ const config: Config = {
       },
       colors: {
         amstel: {
-          red: '#C8102E',
-          'red-dark': '#a00d24',
+          red: '#EB1C24',
+          'red-dark': '#C8102E',
           gold: '#D4A017',
-          'gold-light': '#e8b620',
+          'gold-light': '#E8C45A',
         },
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',

@@ -12,44 +12,42 @@ export default function AuthLayout({
 }) {
   return (
     <div className="flex min-h-screen">
-      {/* Left brand panel — hidden on mobile. Client campaign artwork; the
-          panel aspect (~8:9 on desktop) almost exactly matches the artwork
-          (1422×1600), so cover-fit shows it nearly uncropped. Badge pill and
-          CTAs are overlaid in the artwork's flat-red areas. */}
-      <div className="relative hidden overflow-hidden bg-[#EB1C24] md:block md:w-[45%] lg:w-1/2">
+      {/* Left brand panel — hidden on mobile. The supplied portrait campaign
+          artwork keeps the same visual identity as the public landing page. */}
+      <div className="relative hidden overflow-hidden bg-amstel-red md:block md:w-[45%] lg:w-1/2">
         <h1 className="sr-only">
           Earn. Play. Win. — Loyal Friends of Amstel Rewards
         </h1>
-        <Link href="/" aria-label="Amstel Rewards home">
-          <Image
-            src="/loyal-friends-hero.jpeg"
-            alt="Loyal Friends of Amstel Pool Tournament — buy Amstel, collect points, and trade them for free beer, vouchers and pool tournament entries."
-            fill
-            priority
-            sizes="(min-width: 1024px) 50vw, 45vw"
-            className="object-cover"
-          />
-        </Link>
-
-        <div className="absolute left-[36%] right-[4%] top-[26%] flex justify-center">
-          <span className="w-full rounded-full bg-white/15 px-4 py-1.5 text-center text-[clamp(0.7rem,1.4vw,1.1rem)] font-bold text-white shadow-sm backdrop-blur-[2px]">
-            Loyal Friends of Amstel Rewards
-          </span>
-        </div>
-
-        <div className="absolute bottom-[5%] right-[5%] flex w-[44%] flex-col gap-3">
-          <SmartRedeemButton
-            size="default"
-            className="w-full bg-amstel-gold font-bold text-white shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]"
+        <div className="flex h-full w-full flex-col items-center justify-center p-6">
+          <Link
+            href="/"
+            aria-label="Amstel Rewards home"
+            className="relative flex w-full max-w-[560px] flex-1 items-center justify-center"
           >
-            Scan a code <ArrowRight className="h-4 w-4" />
-          </SmartRedeemButton>
-          <Button
-            asChild
-            className="w-full border border-white/30 bg-[#f6323c] font-bold text-white transition-colors duration-200 hover:bg-[#d81720]"
-          >
-            <Link href="/register">Join Friends of Amstel</Link>
-          </Button>
+            <Image
+              src="/loyal-friends-hero.jpeg"
+              alt="Loyal Friends of Amstel Pool Tournament — buy Amstel, collect points, and trade them for free beer, vouchers and pool tournament entries."
+              fill
+              priority
+              sizes="(min-width: 1024px) 50vw, 45vw"
+              className="object-contain"
+            />
+          </Link>
+
+          <div className="mt-4 flex w-full max-w-[560px] flex-col gap-3">
+            <SmartRedeemButton
+              size="default"
+              className="w-full bg-amstel-gold font-bold text-white shadow-gold transition-transform duration-200 hover:bg-amstel-gold-light motion-safe:hover:scale-[1.02]"
+            >
+              Scan a code <ArrowRight className="h-4 w-4" />
+            </SmartRedeemButton>
+            <Button
+              asChild
+              className="w-full border border-white/30 bg-amstel-red font-bold text-white transition-colors duration-200 hover:bg-amstel-red-dark"
+            >
+              <Link href="/register">Join Friends of Amstel</Link>
+            </Button>
+          </div>
         </div>
 
         <p className="absolute bottom-2 left-4 text-xs text-white/40">
