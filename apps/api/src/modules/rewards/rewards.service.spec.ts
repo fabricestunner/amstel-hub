@@ -298,6 +298,77 @@ describe('RewardsService redemption outlet scoping', () => {
 });
 
 /**
+ * Editing a reward's total stock must keep remainingInventory in step, so the
+ * already-consumed count (total - remaining) is preserved. Otherwise raising the
+ * cap wouldn't actually make more units available to customers.
+ */
+describe('RewardsService.update inventory', () => {
+  function buildPrisma(existing: Record<string, unknown>): {
+    prisma: PrismaService;
+    update: jest.Mock;
+  } {
+    const update = jest
+      .fn()
+      .mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({ id: 'r1', ...data }),
+      );
+    const prisma = {
+      reward: {
+        findFirst: jest.fn().mockResolvedValue(existing),
+        update,
+      },
+    } as unknown as PrismaService;
+    return { prisma, update };
+  }
+
+  it('raises remainingInventory by the same delta when total stock grows', async () => {
+    // 500 total, 400 remaining => 100 consumed. Raise total to 800 => 700 left.
+    const { prisma, update } = buildPrisma({
+      id: 'r1',
+      totalInventory: 500,
+      remainingInventory: 400,
+    });
+    const svc = makeService(prisma);
+
+    await svc.update('r1', { totalInventory: 800 } as never);
+
+    const data = update.mock.calls[0][0].data;
+    expect(data.totalInventory).toBe(800);
+    expect(data.remainingInventory).toBe(700);
+  });
+
+  it('never lets remainingInventory go negative when total stock shrinks', async () => {
+    // 500 total, 100 remaining => 400 consumed. Drop total to 300 => clamp to 0.
+    const { prisma, update } = buildPrisma({
+      id: 'r1',
+      totalInventory: 500,
+      remainingInventory: 100,
+    });
+    const svc = makeService(prisma);
+
+    await svc.update('r1', { totalInventory: 300 } as never);
+
+    const data = update.mock.calls[0][0].data;
+    expect(data.remainingInventory).toBe(0);
+  });
+
+  it('leaves inventory untouched when totalInventory is not in the patch', async () => {
+    const { prisma, update } = buildPrisma({
+      id: 'r1',
+      totalInventory: 500,
+      remainingInventory: 400,
+    });
+    const svc = makeService(prisma);
+
+    await svc.update('r1', { pointsCost: 250 } as never);
+
+    const data = update.mock.calls[0][0].data;
+    expect(data.totalInventory).toBeUndefined();
+    expect(data.remainingInventory).toBeUndefined();
+  });
+});
+
+/**
  * Reward lifecycle notifications. Redeeming a reward and moving a redemption to
  * APPROVED/FULFILLED must notify the customer across their channels, without the
  * notification affecting the redemption result (fire-and-forget). REJECTED is

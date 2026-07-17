@@ -23,6 +23,7 @@ import {
   PasswordInput,
 } from '@/features/auth/form-fields';
 import { useRegister } from '@/features/auth/use-auth-mutations';
+import { useRedirectIfAuthenticated } from '@/lib/auth';
 import { toRwandaE164 } from '@/lib/phone';
 
 const CURRENT_YEAR = new Date().getFullYear();
@@ -70,6 +71,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 export default function RegisterPage() {
   const registerMutation = useRegister();
+  const { checking } = useRedirectIfAuthenticated();
   const [method, setMethod] = useState<'phone' | 'email'>('phone');
 
   const schema = method === 'phone' ? phoneSchema : emailSchema;
@@ -95,6 +97,15 @@ export default function RegisterPage() {
         ? { ...shared, phone: toRwandaE164(v.contact) }
         : { ...shared, email: v.contact };
     registerMutation.mutate(payload);
+  }
+
+  // Already signed in → bounce to the dashboard rather than show the form.
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (

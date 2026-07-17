@@ -76,7 +76,19 @@ export class RewardsService {
   }
 
   async update(id: string, dto: UpdateRewardDto) {
-    await this.findById(id);
+    const existing = await this.findById(id);
+
+    // When the admin changes total stock, move remainingInventory by the same
+    // delta so already-consumed units (total - remaining) stay consumed.
+    // Clamp at 0 so shrinking the cap below what's been redeemed can't go
+    // negative. Untouched when totalInventory isn't part of the patch.
+    let remainingInventory: number | undefined;
+    if (dto.totalInventory !== undefined) {
+      const consumed =
+        (existing.totalInventory ?? 0) - (existing.remainingInventory ?? 0);
+      remainingInventory = Math.max(0, dto.totalInventory - Math.max(0, consumed));
+    }
+
     const data: Prisma.RewardUpdateInput = {
       ...(dto.name !== undefined ? { name: dto.name } : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
@@ -88,7 +100,7 @@ export class RewardsService {
         ? { perUserLimit: dto.perUserLimit }
         : {}),
       ...(dto.totalInventory !== undefined
-        ? { totalInventory: dto.totalInventory }
+        ? { totalInventory: dto.totalInventory, remainingInventory }
         : {}),
       ...(dto.validFrom !== undefined
         ? { validFrom: dto.validFrom ? new Date(dto.validFrom) : null }

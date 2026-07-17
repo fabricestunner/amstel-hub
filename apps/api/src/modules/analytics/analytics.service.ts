@@ -13,6 +13,13 @@ export interface DailyBucket {
 export class AnalyticsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Signed month-over-month percentage change, rounded to one decimal place.
+   * Growing from zero reads as +100%; zero-to-zero is flat (0%). */
+  static percentDelta(current: number, previous: number): number {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return Math.round(((current - previous) / previous) * 1000) / 10;
+  }
+
   /** Headline KPIs for the admin dashboard, scoped for regional managers. */
   async overview(user: AuthenticatedUser) {
     const regionId =
@@ -48,6 +55,49 @@ export class AnalyticsService {
       this.prisma.tournament.count({ where: { deletedAt: null } }),
     ]);
 
+    // Month-over-month deltas: current 30-day window vs the preceding one.
+    const p30 = this.daysAgo(30);
+    const p60 = this.daysAgo(60);
+    const earnWhere = { type: 'EARN' as const, status: 'COMPLETED' as const, ...txScope };
+    const redeemWhere = { type: 'REDEEM' as const, status: 'COMPLETED' as const, ...txScope };
+    const [
+      curUsers,
+      prevUsers,
+      curEarn,
+      prevEarn,
+      curRedeem,
+      prevRedeem,
+      curRewards,
+      prevRewards,
+    ] = await Promise.all([
+      this.prisma.user.count({
+        where: { deletedAt: null, ...userScope, createdAt: { gte: p30 } },
+      }),
+      this.prisma.user.count({
+        where: { deletedAt: null, ...userScope, createdAt: { gte: p60, lt: p30 } },
+      }),
+      this.prisma.pointsTransaction.aggregate({
+        where: { ...earnWhere, createdAt: { gte: p30 } },
+        _sum: { points: true },
+      }),
+      this.prisma.pointsTransaction.aggregate({
+        where: { ...earnWhere, createdAt: { gte: p60, lt: p30 } },
+        _sum: { points: true },
+      }),
+      this.prisma.pointsTransaction.aggregate({
+        where: { ...redeemWhere, createdAt: { gte: p30 } },
+        _sum: { points: true },
+      }),
+      this.prisma.pointsTransaction.aggregate({
+        where: { ...redeemWhere, createdAt: { gte: p60, lt: p30 } },
+        _sum: { points: true },
+      }),
+      this.prisma.rewardRedemption.count({ where: { createdAt: { gte: p30 } } }),
+      this.prisma.rewardRedemption.count({
+        where: { createdAt: { gte: p60, lt: p30 } },
+      }),
+    ]);
+
     const dailyRegistrations = await this.dailyRegistrations(14, regionId);
     const [topRegions, topOutlets, topCustomers] = await Promise.all([
       this.topRegions(regionId),
@@ -57,10 +107,20 @@ export class AnalyticsService {
 
     return {
       activeUsers,
+      activeUsersDelta: AnalyticsService.percentDelta(curUsers, prevUsers),
       dailyRegistrations,
       pointsIssued: pointsIssuedAgg._sum.points ?? 0,
+      pointsIssuedDelta: AnalyticsService.percentDelta(
+        curEarn._sum.points ?? 0,
+        prevEarn._sum.points ?? 0,
+      ),
       pointsRedeemed: Math.abs(pointsRedeemedAgg._sum.points ?? 0),
+      pointsRedeemedDelta: AnalyticsService.percentDelta(
+        Math.abs(curRedeem._sum.points ?? 0),
+        Math.abs(prevRedeem._sum.points ?? 0),
+      ),
       rewardRedemptions,
+      rewardRedemptionsDelta: AnalyticsService.percentDelta(curRewards, prevRewards),
       tournamentCount,
       topRegions,
       topOutlets,

@@ -46,6 +46,7 @@ import {
   useUpdateOutlet,
 } from '@/features/outlets/use-outlets';
 import { useUsers } from '@/features/users/use-users';
+import { useMe } from '@/lib/auth';
 
 const outletSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -68,6 +69,11 @@ export default function AdminOutletsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Outlet | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Outlet | null>(null);
+
+  // Outlet create/update/delete are SUPER_ADMIN-only on the API. Other admin
+  // roles can view outlets but shouldn't see write actions that would 403.
+  const { data: me } = useMe();
+  const isSuperAdmin = me?.role === 'SUPER_ADMIN';
 
   const { data, isLoading } = useOutlets({ page, search, status: statusFilter });
   const createOutlet = useCreateOutlet();
@@ -148,9 +154,11 @@ export default function AdminOutletsPage() {
         title="Outlets"
         description="Manage registered outlets across Rwanda's provinces and districts."
         actions={
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="h-4 w-4" /> Add outlet
-          </Button>
+          isSuperAdmin ? (
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" /> Add outlet
+            </Button>
+          ) : undefined
         }
       />
 
@@ -251,7 +259,8 @@ export default function AdminOutletsPage() {
               {
                 key: 'actions',
                 header: '',
-                render: (r: Outlet) => (
+                render: (r: Outlet) =>
+                  !isSuperAdmin ? null : (
                   <div className="flex justify-end">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

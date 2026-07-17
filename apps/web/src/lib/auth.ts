@@ -129,6 +129,28 @@ export function useAuth(options?: {
   };
 }
 
+/**
+ * Guard for public auth pages (login, register). If the visitor already has a
+ * valid session, send them straight to their role dashboard instead of making
+ * them sign in again — e.g. a logged-in user who returns to the landing page
+ * and taps "Sign in". Returns `checking` so the page can show a spinner instead
+ * of flashing the form before the bounce.
+ */
+export function useRedirectIfAuthenticated(): { checking: boolean } {
+  const router = useRouter();
+  const { data: user, isLoading, isError } = useMe();
+
+  useEffect(() => {
+    if (user && !isError) {
+      router.replace(roleHome(user.role));
+    }
+  }, [user, isError, router]);
+
+  // isLoading is only true while actually fetching (the query is disabled when
+  // there's no stored session), so logged-out visitors fall straight through.
+  return { checking: isLoading || (!!user && !isError) };
+}
+
 /** Logout: revoke server session, clear local state, redirect to /login. */
 export function useLogout() {
   const qc = useQueryClient();

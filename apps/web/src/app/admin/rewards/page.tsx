@@ -3,9 +3,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
+import { useCampaigns } from '@/features/campaigns/use-campaigns';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +22,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/ui/page-header';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Reward,
@@ -35,12 +43,35 @@ import {
   useUpdateReward,
 } from '@/features/rewards/use-rewards';
 
+// Mirrors the API's RewardType enum. These are the categories an admin can
+// assign; TOURNAMENT_ENTRY drives special redemption behaviour on the backend.
+const REWARD_TYPES = [
+  'MERCHANDISE',
+  'FREE_DRINK',
+  'GIFT_ITEM',
+  'CASH',
+  'COUPON',
+  'DIGITAL',
+  'TOURNAMENT_ENTRY',
+] as const;
+
+const humanizeType = (t?: string) =>
+  t ? t.replace(/_/g, ' ').toLowerCase() : '—';
+
 const rewardSchema = z.object({
+  // Required on create; on edit it's pre-filled from the reward and the field
+  // is hidden (campaign can't be reassigned after creation).
+  campaignId: z.string().uuid('Select a campaign'),
   name: z.string().min(2, 'Required'),
   description: z.string().optional(),
-  type: z.string().optional(),
+  type: z.enum(REWARD_TYPES, { message: 'Select a type' }),
   pointsCost: z.coerce.number().int().min(0),
-  stock: z.coerce.number().int().min(0).optional(),
+  // Blank stock = unlimited inventory. Coerce '' to undefined so the optional
+  // number validation doesn't choke on an empty input.
+  totalInventory: z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : v),
+    z.coerce.number().int().min(0).optional(),
+  ),
 });
 type RewardForm = z.infer<typeof rewardSchema>;
 
@@ -60,6 +91,8 @@ function redemptionVariant(status?: string) {
 
 function CatalogTab() {
   const { data: rewards, isLoading } = useRewards();
+  const { data: campaignData } = useCampaigns();
+  const campaigns = campaignData?.items ?? [];
   const create = useCreateReward();
   const update = useUpdateReward();
   const deleteReward = useDeleteReward();
@@ -69,6 +102,7 @@ function CatalogTab() {
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors },
@@ -77,19 +111,30 @@ function CatalogTab() {
   useEffect(() => {
     if (open) {
       reset({
+        campaignId: editing?.campaignId ?? undefined,
         name: editing?.name ?? '',
         description: editing?.description ?? '',
-        type: editing?.type ?? '',
+        type: (editing?.type as RewardForm['type']) ?? undefined,
         pointsCost: editing?.pointsCost ?? 0,
-        stock: editing?.stock ?? undefined,
+        totalInventory: editing?.totalInventory ?? undefined,
       });
     }
   }, [open, editing, reset]);
 
   function onSubmit(values: RewardForm) {
     if (editing) {
+      // Update is a partial patch; campaignId is fixed once created.
       update.mutate(
-        { id: editing.id, input: values },
+        {
+          id: editing.id,
+          input: {
+            name: values.name,
+            description: values.description,
+            type: values.type,
+            pointsCost: values.pointsCost,
+            totalInventory: values.totalInventory,
+          },
+        },
         { onSuccess: () => setOpen(false) },
       );
     } else {
@@ -126,7 +171,9 @@ function CatalogTab() {
               {
                 key: 'type',
                 header: 'Type',
-                render: (r: Reward) => r.type ?? '—',
+                render: (r: Reward) => (
+                  <span className="capitalize">{humanizeType(r.type)}</span>
+                ),
               },
               {
                 key: 'pointsCost',
@@ -137,7 +184,9 @@ function CatalogTab() {
                 key: 'stock',
                 header: 'Stock',
                 render: (r: Reward) =>
-                  r.stock == null ? 'Unlimited' : r.stock.toLocaleString(),
+                  r.totalInventory == null
+                    ? 'Unlimited'
+                    : `${(r.remainingInventory ?? r.totalInventory).toLocaleString()} / ${r.totalInventory.toLocaleString()}`,
               },
               {
                 key: 'actions',
@@ -179,6 +228,37 @@ function CatalogTab() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              {!editing && (
+                <div className="space-y-2">
+                  <Label htmlFor="campaignId">Campaign</Label>
+                  <Controller
+                    control={control}
+                    name="campaignId"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? ''}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger id="campaignId">
+                          <SelectValue placeholder="Select a campaign" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {campaigns.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.campaignId && (
+                    <p className="text-sm text-destructive">
+                      {errors.campaignId.message}
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="name">Name</Label>
                 <Input id="name" {...register('name')} />
@@ -193,7 +273,32 @@ function CatalogTab() {
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="type">Type</Label>
-                  <Input id="type" placeholder="merch" {...register('type')} />
+                  <Controller
+                    control={control}
+                    name="type"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value ?? ''}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger id="type">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {REWARD_TYPES.map((t) => (
+                            <SelectItem key={t} value={t} className="capitalize">
+                              {humanizeType(t)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.type && (
+                    <p className="text-sm text-destructive">
+                      {errors.type.message}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="pointsCost">Points</Label>
@@ -209,8 +314,13 @@ function CatalogTab() {
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="stock">Stock</Label>
-                  <Input id="stock" type="number" {...register('stock')} />
+                  <Label htmlFor="totalInventory">Total stock</Label>
+                  <Input
+                    id="totalInventory"
+                    type="number"
+                    placeholder="Unlimited"
+                    {...register('totalInventory')}
+                  />
                 </div>
               </div>
             </div>

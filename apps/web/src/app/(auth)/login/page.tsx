@@ -21,6 +21,7 @@ import {
   PasswordInput,
 } from '@/features/auth/form-fields';
 import { useLogin } from '@/features/auth/use-auth-mutations';
+import { useRedirectIfAuthenticated } from '@/lib/auth';
 
 const schema = z.object({
   identifier: z.string().min(3, 'Enter your email or phone'),
@@ -31,11 +32,21 @@ type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const login = useLogin();
+  const { checking } = useRedirectIfAuthenticated();
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  // Already signed in → we're bouncing to the dashboard; don't flash the form.
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <>

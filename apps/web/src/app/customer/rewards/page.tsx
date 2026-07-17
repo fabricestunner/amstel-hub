@@ -251,7 +251,9 @@ export default function CustomerRewardsPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {rewards.map((reward) => {
                 const affordable = available >= reward.pointsCost;
-                const outOfStock = reward.stock != null && reward.stock <= 0;
+                const outOfStock =
+                  reward.remainingInventory != null &&
+                  reward.remainingInventory <= 0;
                 return (
                   <Card key={reward.id} className="flex flex-col">
                     <CardHeader>

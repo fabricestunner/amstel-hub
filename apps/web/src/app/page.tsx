@@ -13,6 +13,7 @@ import {
 import Image from 'next/image';
 import Link from 'next/link';
 
+import { LandingHeaderCta } from '@/components/landing-header-cta';
 import { SmartRedeemButton } from '@/components/smart-redeem-button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Badge } from '@/components/ui/badge';
@@ -76,23 +77,7 @@ export default function HomePage() {
           </Link>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="hidden sm:inline-flex"
-            >
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button
-              asChild
-              size="sm"
-              className="bg-amstel-red text-white transition-colors duration-200 hover:bg-amstel-red-dark"
-            >
-              <Link href="/register">
-                Join Friends of Amstel <ArrowRight className="h-4 w-4" />
-              </Link>
-            </Button>
+            <LandingHeaderCta />
           </div>
         </div>
       </header>

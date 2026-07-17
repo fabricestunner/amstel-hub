@@ -92,7 +92,9 @@ export default function AdminCustomersPage() {
   const [editTarget, setEditTarget] = useState<UserRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<UserRow | null>(null);
 
-  const { data, isLoading } = useUsers({ page, search });
+  // This is the customers view — scope to CUSTOMER so staff (managers,
+  // promoters, admins) don't leak in. Staff have their own /admin/team page.
+  const { data, isLoading } = useUsers({ page, search, role: 'CUSTOMER' });
   const updateStatus = useUpdateUserStatus();
   const updateUser = useUpdateUser();
   const createUser = useCreateUser();

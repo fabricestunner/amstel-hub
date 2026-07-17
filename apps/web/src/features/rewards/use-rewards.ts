@@ -19,8 +19,12 @@ export interface Reward {
   type?: string;
   pointsCost: number;
   imageUrl?: string;
-  stock?: number | null;
-  active?: boolean;
+  campaignId?: string;
+  status?: string;
+  // API inventory model: totalInventory = configured cap (null = unlimited),
+  // remainingInventory = what's left after redemptions.
+  totalInventory?: number | null;
+  remainingInventory?: number | null;
 }
 
 export interface RewardRedemption {
@@ -122,12 +126,12 @@ export function useOutletRedemptions(page = 1, status?: string) {
 }
 
 export interface RewardInput {
+  campaignId?: string;
   name: string;
   description?: string;
   type?: string;
   pointsCost: number;
-  stock?: number | null;
-  active?: boolean;
+  totalInventory?: number | null;
 }
 
 export function useCreateReward() {
