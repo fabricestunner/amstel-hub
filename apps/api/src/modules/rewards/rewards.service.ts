@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, RewardType } from '@prisma/client';
 
 import { AuthenticatedUser } from '../../common/decorators';
 import { paginate } from '../../common/dto/pagination.dto';
@@ -19,12 +19,46 @@ import {
   UpdateRewardDto,
 } from './dto/reward.dto';
 
+// Reward reads expose the admin-managed category (customer-facing "type").
+const REWARD_INCLUDE = {
+  category: { select: { id: true, name: true, slug: true } },
+} satisfies Prisma.RewardInclude;
+
 @Injectable()
 export class RewardsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
   ) {}
+
+  /**
+   * Resolve the category chosen for a reward and derive the behavioural `type`
+   * from it: a TOURNAMENT_ENTRY category makes the reward a tournament entry,
+   * anything else is a generic MERCHANDISE reward. Falls back to an explicit
+   * `type` (legacy/seed path) when no category is given. One of the two is
+   * required.
+   */
+  private async resolveCategoryAndType(dto: {
+    categoryId?: string;
+    type?: RewardType;
+  }): Promise<{ categoryId: string | null; type: RewardType }> {
+    if (dto.categoryId) {
+      const category = await this.prisma.rewardCategory.findFirst({
+        where: { id: dto.categoryId, deletedAt: null },
+        select: { id: true, behavior: true },
+      });
+      if (!category) throw new BadRequestException('Unknown reward category');
+      return {
+        categoryId: category.id,
+        type:
+          category.behavior === 'TOURNAMENT_ENTRY'
+            ? RewardType.TOURNAMENT_ENTRY
+            : RewardType.MERCHANDISE,
+      };
+    }
+    if (dto.type) return { categoryId: null, type: dto.type };
+    throw new BadRequestException('A reward category is required');
+  }
 
   /** Public-ish catalog: ACTIVE rewards, paginated. */
   async list(query: ListRewardsDto) {
@@ -33,6 +67,7 @@ export class RewardsService {
       status: 'ACTIVE',
       ...(query.campaignId ? { campaignId: query.campaignId } : {}),
       ...(query.type ? { type: query.type } : {}),
+      ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(query.search
         ? { name: { contains: query.search, mode: 'insensitive' } }
         : {}),
@@ -43,6 +78,7 @@ export class RewardsService {
         skip: query.skip,
         take: query.limit,
         orderBy: { createdAt: query.sortOrder },
+        include: REWARD_INCLUDE,
       }),
       this.prisma.reward.count({ where }),
     ]);
@@ -52,19 +88,23 @@ export class RewardsService {
   async findById(id: string) {
     const reward = await this.prisma.reward.findFirst({
       where: { id, deletedAt: null },
+      include: REWARD_INCLUDE,
     });
     if (!reward) throw new NotFoundException('Reward not found');
     return reward;
   }
 
   async create(dto: CreateRewardDto) {
+    const { categoryId, type } = await this.resolveCategoryAndType(dto);
     return this.prisma.reward.create({
+      include: REWARD_INCLUDE,
       data: {
         campaignId: dto.campaignId,
         name: dto.name,
         description: dto.description,
         imageUrl: dto.imageUrl,
-        type: dto.type,
+        type,
+        categoryId,
         pointsCost: dto.pointsCost,
         totalInventory: dto.totalInventory,
         remainingInventory: dto.totalInventory,
@@ -89,11 +129,28 @@ export class RewardsService {
       remainingInventory = Math.max(0, dto.totalInventory - Math.max(0, consumed));
     }
 
+    // Changing the category re-derives the behavioural `type`. A bare `type`
+    // patch (legacy) still works when no category is supplied.
+    let derivedType: RewardType | undefined;
+    let categoryConnect: string | undefined;
+    if (dto.categoryId !== undefined) {
+      const resolved = await this.resolveCategoryAndType({
+        categoryId: dto.categoryId,
+      });
+      derivedType = resolved.type;
+      categoryConnect = resolved.categoryId ?? undefined;
+    } else if (dto.type !== undefined) {
+      derivedType = dto.type;
+    }
+
     const data: Prisma.RewardUpdateInput = {
       ...(dto.name !== undefined ? { name: dto.name } : {}),
       ...(dto.description !== undefined ? { description: dto.description } : {}),
       ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
-      ...(dto.type !== undefined ? { type: dto.type } : {}),
+      ...(derivedType !== undefined ? { type: derivedType } : {}),
+      ...(categoryConnect !== undefined
+        ? { category: { connect: { id: categoryConnect } } }
+        : {}),
       ...(dto.status !== undefined ? { status: dto.status } : {}),
       ...(dto.pointsCost !== undefined ? { pointsCost: dto.pointsCost } : {}),
       ...(dto.perUserLimit !== undefined
@@ -112,7 +169,11 @@ export class RewardsService {
         ? { campaign: { connect: { id: dto.campaignId } } }
         : {}),
     };
-    return this.prisma.reward.update({ where: { id }, data });
+    return this.prisma.reward.update({
+      where: { id },
+      data,
+      include: REWARD_INCLUDE,
+    });
   }
 
   async softDelete(id: string) {

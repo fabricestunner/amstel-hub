@@ -100,6 +100,34 @@ enum RewardType {
   DIGITAL
 }
 
+// Behaviour a category confers on its rewards. STANDARD is an ordinary
+// points-for-goods reward; TOURNAMENT_ENTRY additionally registers the customer
+// for a tournament on redemption. Only the seeded system category may carry
+// TOURNAMENT_ENTRY — admins create STANDARD categories only.
+enum RewardBehavior {
+  STANDARD
+  TOURNAMENT_ENTRY
+}
+
+// Admin-managed reward categories (the customer-facing "type"). The behavioural
+// discriminator on Reward.type is derived from `behavior` on write.
+model RewardCategory {
+  id        String         @id @default(uuid()) @db.Uuid
+  name      String         @unique
+  slug      String         @unique
+  behavior  RewardBehavior @default(STANDARD)
+  isSystem  Boolean        @default(false)
+  sortOrder Int            @default(0)
+
+  rewards Reward[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@map("reward_categories")
+}
+
 enum RewardStatus {
   ACTIVE
   INACTIVE
@@ -578,7 +606,10 @@ model Reward {
   name          String
   description   String?
   imageUrl      String?
+  // Internal behaviour discriminator (derived from category.behavior on write).
   type          RewardType
+  categoryId    String?         @db.Uuid
+  category      RewardCategory? @relation(fields: [categoryId], references: [id])
   status        RewardStatus @default(ACTIVE)
   pointsCost    Int
   totalInventory Int? // null = unlimited
@@ -595,6 +626,7 @@ model Reward {
 
   @@index([campaignId, status])
   @@index([type])
+  @@index([categoryId])
   @@map("rewards")
 }
 

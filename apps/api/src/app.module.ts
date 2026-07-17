@@ -23,6 +23,7 @@ import { LoyaltyModule } from './modules/loyalty/loyalty.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { OutletsModule } from './modules/outlets/outlets.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { RewardCategoriesModule } from './modules/reward-categories/reward-categories.module';
 import { RewardsModule } from './modules/rewards/rewards.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { StorageModule } from './modules/storage/storage.module';
@@ -63,6 +64,7 @@ import { VouchersModule } from './modules/vouchers/vouchers.module';
     OutletsModule,
     VouchersModule,
     RewardsModule,
+    RewardCategoriesModule,
     TournamentsModule,
     LeaderboardsModule,
     AnalyticsModule,

@@ -163,15 +163,19 @@ function ClaimedRewards() {
   );
 }
 
+// The customer-facing category label, with a fallback for legacy rewards.
+const rewardCategoryName = (r: Reward): string | undefined =>
+  r.category?.name ?? (r.type ? r.type.replace(/_/g, ' ').toLowerCase() : undefined);
+
 export default function CustomerRewardsPage() {
-  const [type, setType] = useState('all');
+  const [category, setCategory] = useState('all');
   const {
     data: rewards,
     isLoading,
     isError,
     error,
     refetch,
-  } = useRewards(type === 'all' ? undefined : type);
+  } = useRewards();
   const { data: wallet } = useWallet();
   const { data: customerOutlets } = useCustomerOutlets();
   const redeem = useRedeemReward();
@@ -181,11 +185,22 @@ export default function CustomerRewardsPage() {
 
   const available = wallet?.availablePoints ?? 0;
 
-  const types = useMemo(() => {
+  const categories = useMemo(() => {
     const set = new Set<string>();
-    (rewards ?? []).forEach((r) => r.type && set.add(r.type));
+    (rewards ?? []).forEach((r) => {
+      const name = rewardCategoryName(r);
+      if (name) set.add(name);
+    });
     return Array.from(set);
   }, [rewards]);
+
+  const visibleRewards = useMemo(
+    () =>
+      category === 'all'
+        ? rewards ?? []
+        : (rewards ?? []).filter((r) => rewardCategoryName(r) === category),
+    [rewards, category],
+  );
 
   return (
     <div className="space-y-6">
@@ -201,12 +216,12 @@ export default function CustomerRewardsPage() {
         </TabsList>
 
         <TabsContent value="available" className="space-y-6">
-          <Tabs value={type} onValueChange={setType}>
+          <Tabs value={category} onValueChange={setCategory}>
             <TabsList>
               <TabsTrigger value="all">All</TabsTrigger>
-              {types.map((t) => (
-                <TabsTrigger key={t} value={t} className="capitalize">
-                  {t}
+              {categories.map((c) => (
+                <TabsTrigger key={c} value={c} className="capitalize">
+                  {c}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -249,7 +264,7 @@ export default function CustomerRewardsPage() {
             />
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {rewards.map((reward) => {
+              {visibleRewards.map((reward) => {
                 const affordable = available >= reward.pointsCost;
                 const outOfStock =
                   reward.remainingInventory != null &&
@@ -259,9 +274,9 @@ export default function CustomerRewardsPage() {
                     <CardHeader>
                       <div className="flex items-start justify-between gap-2">
                         <CardTitle className="text-lg">{reward.name}</CardTitle>
-                        {reward.type && (
+                        {rewardCategoryName(reward) && (
                           <Badge variant="outline" className="capitalize">
-                            {reward.type}
+                            {rewardCategoryName(reward)}
                           </Badge>
                         )}
                       </div>

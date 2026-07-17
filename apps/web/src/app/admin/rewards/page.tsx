@@ -2,11 +2,18 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { useCampaigns } from '@/features/campaigns/use-campaigns';
+import {
+  RewardCategory,
+  useCreateRewardCategory,
+  useDeleteRewardCategory,
+  useRewardCategories,
+  useUpdateRewardCategory,
+} from '@/features/reward-categories/use-reward-categories';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -43,28 +50,13 @@ import {
   useUpdateReward,
 } from '@/features/rewards/use-rewards';
 
-// Mirrors the API's RewardType enum. These are the categories an admin can
-// assign; TOURNAMENT_ENTRY drives special redemption behaviour on the backend.
-const REWARD_TYPES = [
-  'MERCHANDISE',
-  'FREE_DRINK',
-  'GIFT_ITEM',
-  'CASH',
-  'COUPON',
-  'DIGITAL',
-  'TOURNAMENT_ENTRY',
-] as const;
-
-const humanizeType = (t?: string) =>
-  t ? t.replace(/_/g, ' ').toLowerCase() : '—';
-
 const rewardSchema = z.object({
   // Required on create; on edit it's pre-filled from the reward and the field
   // is hidden (campaign can't be reassigned after creation).
   campaignId: z.string().uuid('Select a campaign'),
   name: z.string().min(2, 'Required'),
   description: z.string().optional(),
-  type: z.enum(REWARD_TYPES, { message: 'Select a type' }),
+  categoryId: z.string().uuid('Select a category'),
   pointsCost: z.coerce.number().int().min(0),
   // Blank stock = unlimited inventory. Coerce '' to undefined so the optional
   // number validation doesn't choke on an empty input.
@@ -74,6 +66,11 @@ const rewardSchema = z.object({
   ),
 });
 type RewardForm = z.infer<typeof rewardSchema>;
+
+// The reward's displayed category name, with a graceful fallback for legacy
+// rewards that predate categories.
+const rewardCategoryLabel = (r: Reward) =>
+  r.category?.name ?? (r.type ? r.type.replace(/_/g, ' ').toLowerCase() : '—');
 
 function redemptionVariant(status?: string) {
   switch (status) {
@@ -93,6 +90,7 @@ function CatalogTab() {
   const { data: rewards, isLoading } = useRewards();
   const { data: campaignData } = useCampaigns();
   const campaigns = campaignData?.items ?? [];
+  const { data: categories = [] } = useRewardCategories();
   const create = useCreateReward();
   const update = useUpdateReward();
   const deleteReward = useDeleteReward();
@@ -114,7 +112,7 @@ function CatalogTab() {
         campaignId: editing?.campaignId ?? undefined,
         name: editing?.name ?? '',
         description: editing?.description ?? '',
-        type: (editing?.type as RewardForm['type']) ?? undefined,
+        categoryId: editing?.categoryId ?? undefined,
         pointsCost: editing?.pointsCost ?? 0,
         totalInventory: editing?.totalInventory ?? undefined,
       });
@@ -130,7 +128,7 @@ function CatalogTab() {
           input: {
             name: values.name,
             description: values.description,
-            type: values.type,
+            categoryId: values.categoryId,
             pointsCost: values.pointsCost,
             totalInventory: values.totalInventory,
           },
@@ -170,9 +168,9 @@ function CatalogTab() {
               { key: 'name', header: 'Name' },
               {
                 key: 'type',
-                header: 'Type',
+                header: 'Category',
                 render: (r: Reward) => (
-                  <span className="capitalize">{humanizeType(r.type)}</span>
+                  <span className="capitalize">{rewardCategoryLabel(r)}</span>
                 ),
               },
               {
@@ -272,31 +270,31 @@ function CatalogTab() {
               </div>
               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="type">Type</Label>
+                  <Label htmlFor="categoryId">Category</Label>
                   <Controller
                     control={control}
-                    name="type"
+                    name="categoryId"
                     render={({ field }) => (
                       <Select
                         value={field.value ?? ''}
                         onValueChange={field.onChange}
                       >
-                        <SelectTrigger id="type">
-                          <SelectValue placeholder="Select type" />
+                        <SelectTrigger id="categoryId">
+                          <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
-                          {REWARD_TYPES.map((t) => (
-                            <SelectItem key={t} value={t} className="capitalize">
-                              {humanizeType(t)}
+                          {categories.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     )}
                   />
-                  {errors.type && (
+                  {errors.categoryId && (
                     <p className="text-sm text-destructive">
-                      {errors.type.message}
+                      {errors.categoryId.message}
                     </p>
                   )}
                 </div>
@@ -473,6 +471,167 @@ function QueueTab() {
   );
 }
 
+function CategoriesTab() {
+  const { data: categories = [], isLoading } = useRewardCategories();
+  const createCategory = useCreateRewardCategory();
+  const updateCategory = useUpdateRewardCategory();
+  const deleteCategory = useDeleteRewardCategory();
+  const [newName, setNewName] = useState('');
+  const [renameTarget, setRenameTarget] = useState<RewardCategory | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<RewardCategory | null>(null);
+
+  function onCreate(e: FormEvent) {
+    e.preventDefault();
+    const name = newName.trim();
+    if (name.length < 2) return;
+    createCategory.mutate({ name }, { onSuccess: () => setNewName('') });
+  }
+
+  function onRename() {
+    if (!renameTarget || renameValue.trim().length < 2) return;
+    updateCategory.mutate(
+      { id: renameTarget.id, input: { name: renameValue.trim() } },
+      { onSuccess: () => setRenameTarget(null) },
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 pt-6">
+        <form onSubmit={onCreate} className="flex items-end gap-2">
+          <div className="flex-1 space-y-2">
+            <Label htmlFor="newCategory">New category</Label>
+            <Input
+              id="newCategory"
+              placeholder="e.g. Festival Prizes"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+          </div>
+          <Button type="submit" disabled={createCategory.isPending}>
+            <Plus className="h-4 w-4" /> Add
+          </Button>
+        </form>
+
+        <DataTable
+          isLoading={isLoading}
+          rows={categories}
+          columns={[
+            { key: 'name', header: 'Name' },
+            {
+              key: 'behavior',
+              header: 'Behaviour',
+              render: (c: RewardCategory) =>
+                c.behavior === 'TOURNAMENT_ENTRY' ? (
+                  <Badge variant="gold">Tournament entry</Badge>
+                ) : (
+                  <Badge variant="outline">Standard</Badge>
+                ),
+            },
+            {
+              key: 'isSystem',
+              header: '',
+              render: (c: RewardCategory) =>
+                c.isSystem ? (
+                  <Badge variant="secondary">System</Badge>
+                ) : null,
+            },
+            {
+              key: 'actions',
+              header: '',
+              render: (c: RewardCategory) => (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setRenameTarget(c);
+                      setRenameValue(c.name);
+                    }}
+                  >
+                    Rename
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={c.isSystem}
+                    title={
+                      c.isSystem ? 'System categories cannot be deleted' : undefined
+                    }
+                    onClick={() => setDeleteTarget(c)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ),
+            },
+          ]}
+        />
+      </CardContent>
+
+      <Dialog
+        open={!!renameTarget}
+        onOpenChange={(o) => !o && setRenameTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename category</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="renameCategory">Name</Label>
+            <Input
+              id="renameCategory"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRenameTarget(null)}>
+              Cancel
+            </Button>
+            <Button onClick={onRename} disabled={updateCategory.isPending}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete category?</DialogTitle>
+            <DialogDescription>
+              <strong>{deleteTarget?.name}</strong> will be removed. Rewards
+              still using it must be reassigned first.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteCategory.isPending}
+              onClick={() =>
+                deleteTarget &&
+                deleteCategory.mutate(deleteTarget.id, {
+                  onSuccess: () => setDeleteTarget(null),
+                })
+              }
+            >
+              {deleteCategory.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
 export default function AdminRewardsPage() {
   return (
     <div className="space-y-6">
@@ -483,10 +642,14 @@ export default function AdminRewardsPage() {
       <Tabs defaultValue="catalog">
         <TabsList>
           <TabsTrigger value="catalog">Catalog</TabsTrigger>
+          <TabsTrigger value="categories">Categories</TabsTrigger>
           <TabsTrigger value="queue">Approval queue</TabsTrigger>
         </TabsList>
         <TabsContent value="catalog">
           <CatalogTab />
+        </TabsContent>
+        <TabsContent value="categories">
+          <CategoriesTab />
         </TabsContent>
         <TabsContent value="queue">
           <QueueTab />

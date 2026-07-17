@@ -298,6 +298,76 @@ describe('RewardsService redemption outlet scoping', () => {
 });
 
 /**
+ * Creating a reward derives the behavioural `type` from the chosen category:
+ * a TOURNAMENT_ENTRY-behaviour category makes a tournament-entry reward, any
+ * other category is generic MERCHANDISE. Missing/unknown category is rejected.
+ */
+describe('RewardsService.create category → type', () => {
+  function build(category: unknown) {
+    const create = jest
+      .fn()
+      .mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({ id: 'r1', ...data }),
+      );
+    const prisma = {
+      rewardCategory: { findFirst: jest.fn().mockResolvedValue(category) },
+      reward: { create },
+    } as unknown as PrismaService;
+    return { svc: makeService(prisma), create };
+  }
+
+  const dto = {
+    campaignId: 'c1',
+    name: 'Prize',
+    pointsCost: 100,
+    categoryId: 'cat-1',
+  };
+
+  it('sets type TOURNAMENT_ENTRY for a tournament-behaviour category', async () => {
+    const { svc, create } = build({ id: 'cat-1', behavior: 'TOURNAMENT_ENTRY' });
+
+    await svc.create(dto as never);
+
+    expect(create.mock.calls[0][0].data).toEqual(
+      expect.objectContaining({ type: 'TOURNAMENT_ENTRY', categoryId: 'cat-1' }),
+    );
+  });
+
+  it('sets type MERCHANDISE for a standard category', async () => {
+    const { svc, create } = build({ id: 'cat-1', behavior: 'STANDARD' });
+
+    await svc.create(dto as never);
+
+    expect(create.mock.calls[0][0].data).toEqual(
+      expect.objectContaining({ type: 'MERCHANDISE', categoryId: 'cat-1' }),
+    );
+  });
+
+  it('rejects an unknown category', async () => {
+    const { svc } = build(null);
+
+    await expect(svc.create(dto as never)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('falls back to an explicit type when no category is given (legacy)', async () => {
+    const { svc, create } = build(null);
+
+    await svc.create({
+      campaignId: 'c1',
+      name: 'Prize',
+      pointsCost: 100,
+      type: 'FREE_DRINK',
+    } as never);
+
+    expect(create.mock.calls[0][0].data).toEqual(
+      expect.objectContaining({ type: 'FREE_DRINK', categoryId: null }),
+    );
+  });
+});
+
+/**
  * Editing a reward's total stock must keep remainingInventory in step, so the
  * already-consumed count (total - remaining) is preserved. Otherwise raising the
  * cap wouldn't actually make more units available to customers.

@@ -17,6 +17,8 @@ export interface Reward {
   name: string;
   description?: string;
   type?: string;
+  categoryId?: string | null;
+  category?: { id: string; name: string; slug: string } | null;
   pointsCost: number;
   imageUrl?: string;
   campaignId?: string;
@@ -129,7 +131,7 @@ export interface RewardInput {
   campaignId?: string;
   name: string;
   description?: string;
-  type?: string;
+  categoryId?: string;
   pointsCost: number;
   totalInventory?: number | null;
 }

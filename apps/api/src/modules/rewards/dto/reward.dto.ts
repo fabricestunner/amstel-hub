@@ -33,9 +33,20 @@ export class CreateRewardDto {
   @IsString()
   imageUrl?: string;
 
-  @ApiProperty({ enum: RewardType })
+  @ApiPropertyOptional({
+    description: 'Admin-managed reward category. Determines reward behaviour.',
+  })
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
+
+  @ApiPropertyOptional({
+    enum: RewardType,
+    description: 'Legacy behaviour discriminator; usually derived from category.',
+  })
+  @IsOptional()
   @IsEnum(RewardType)
-  type!: RewardType;
+  type?: RewardType;
 
   @ApiProperty({ example: 500 })
   @IsInt()
@@ -82,6 +93,11 @@ export class ListRewardsDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(RewardType)
   type?: RewardType;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  categoryId?: string;
 }
 
 export class RedeemRewardDto {
