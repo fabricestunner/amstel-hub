@@ -43,6 +43,9 @@ const baseFields = {
     .min(1900, 'Enter a valid year')
     .max(MAX_BIRTH_YEAR, 'You must be at least 18 years old'),
   password: z.string().min(6, 'At least 6 characters'),
+  agreeToTerms: z.literal(true, {
+    message: 'You must agree to the Terms and Conditions and Privacy Policy',
+  }),
 };
 
 const phoneSchema = z.object({
@@ -273,6 +276,34 @@ export default function RegisterPage() {
         </CardContent>
 
         <CardFooter className="flex-col gap-4 pt-2 pb-6">
+          <div className="w-full space-y-2">
+            <label className="flex items-start gap-2.5 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-input text-amstel-red focus-visible:ring-2 focus-visible:ring-amstel-red/40"
+                {...register('agreeToTerms')}
+              />
+              <span>
+                I have read and agree to the{' '}
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  className="font-semibold text-amstel-red hover:underline"
+                >
+                  Terms and Conditions
+                </Link>{' '}
+                and{' '}
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  className="font-semibold text-amstel-red hover:underline"
+                >
+                  Privacy Policy
+                </Link>
+              </span>
+            </label>
+            <FieldError message={errors.agreeToTerms?.message} />
+          </div>
           <Button
             type="submit"
             className="w-full bg-amstel-red text-white hover:bg-amstel-red-dark"

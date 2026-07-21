@@ -59,6 +59,7 @@ export default function CustomerTournamentsPage() {
   const register = useRegisterTournament();
   const [openId, setOpenId] = useState<string | null>(null);
   const [selectedOutletId, setSelectedOutletId] = useState<string | null>(null);
+  const [photoConsent, setPhotoConsent] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [registeringTournamentId, setRegisteringTournamentId] = useState<string | null>(null);
   const bracket = useTournamentBracket(openId ?? undefined);
@@ -158,6 +159,7 @@ export default function CustomerTournamentsPage() {
                       disabled={!isOpen || !canAfford || register.isPending}
                       onClick={() => {
                         setSelectedOutletId(null);
+                        setPhotoConsent(false);
                         setRegisteringTournamentId(t.id);
                         setDialogOpen(true);
                       }}
@@ -221,6 +223,20 @@ export default function CustomerTournamentsPage() {
                 ))}
               </div>
             )}
+
+            <label className="flex items-start gap-2.5 rounded-lg border p-3 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={photoConsent}
+                onChange={(e) => setPhotoConsent(e.target.checked)}
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-input text-amstel-red focus-visible:ring-2 focus-visible:ring-amstel-red/40"
+              />
+              <span>
+                I consent to being photographed and filmed during the
+                tournament for Amstel&rsquo;s promotional and marketing
+                purposes.
+              </span>
+            </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -228,9 +244,9 @@ export default function CustomerTournamentsPage() {
             </Button>
             <Button
               variant="gold"
-              disabled={!selectedOutletId || register.isPending}
+              disabled={!selectedOutletId || !photoConsent || register.isPending}
               onClick={() => {
-                if (selectedOutletId && registeringTournamentId) {
+                if (selectedOutletId && photoConsent && registeringTournamentId) {
                   register.mutate({ tournamentId: registeringTournamentId, outletId: selectedOutletId });
                   setDialogOpen(false);
                 }
