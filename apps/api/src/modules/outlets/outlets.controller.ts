@@ -19,6 +19,7 @@ import { OutletsService } from './outlets.service';
 import {
   CreateOutletDto,
   ListOutletsDto,
+  OutletCustomerLeaderboardQueryDto,
   OutletVouchersQueryDto,
   RedemptionHistoryQueryDto,
   UpdateOutletDto,
@@ -70,6 +71,16 @@ export class OutletsController {
   @Get(':id/dashboard')
   dashboard(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
     return this.outlets.dashboard(id, user);
+  }
+
+  @Roles('SUPER_ADMIN', 'REGIONAL_MANAGER', 'OUTLET_MANAGER')
+  @Get(':id/customers/leaderboard')
+  customerLeaderboard(
+    @Param('id') id: string,
+    @Query() query: OutletCustomerLeaderboardQueryDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.outlets.customerLeaderboard(id, query, user);
   }
 
   @Roles('SUPER_ADMIN', 'REGIONAL_MANAGER', 'OUTLET_MANAGER')

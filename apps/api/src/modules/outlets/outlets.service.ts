@@ -10,9 +10,11 @@ import { Prisma } from '@prisma/client';
 import { AuthenticatedUser } from '../../common/decorators';
 import { paginate } from '../../common/dto/pagination.dto';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { RedisService } from '../../common/redis/redis.service';
 import {
   CreateOutletDto,
   ListOutletsDto,
+  OutletCustomerLeaderboardQueryDto,
   OutletVouchersQueryDto,
   RedemptionHistoryQueryDto,
   UpdateOutletDto,
@@ -26,7 +28,10 @@ const GEO_INCLUDE = {
 
 @Injectable()
 export class OutletsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {}
 
   async list(query: ListOutletsDto, user: AuthenticatedUser) {
     const where: Prisma.OutletWhereInput = {
@@ -302,6 +307,7 @@ export class OutletsService {
       name: outlet.name,
       nationalRank: outlet.nationalRank,
       regionalRank: outlet.regionalRank,
+      availablePoints: Number(outlet.availablePoints),
       campaignSales: Number(outlet.totalSales),
       pointsGenerated: redemptionAgg._sum.points ?? 0,
       redemptionsCount: redemptionAgg._count._all,
@@ -326,6 +332,92 @@ export class OutletsService {
         joinedAt: c.createdAt.toISOString(),
       })),
     };
+  }
+
+  private static readonly CUSTOMER_LEADERBOARD_PAGE_SIZE = 50;
+
+  /**
+   * Top customers registered at this outlet, ranked by points. Live query
+   * (not the LeaderboardEntry snapshot table): this is outlet-scoped data
+   * only that outlet's manager (or an admin) ever looks at, so a 60s cache
+   * is enough — mirrors the pattern in leaderboards.service.ts.
+   */
+  async customerLeaderboard(
+    id: string,
+    query: OutletCustomerLeaderboardQueryDto,
+    user: AuthenticatedUser,
+  ): Promise<Array<{ rank: number; id: string; name: string; points: number }>> {
+    const outlet = await this.prisma.outlet.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!outlet) throw new NotFoundException('Outlet not found');
+    this.assertReadScope(outlet.id, outlet.regionId, user);
+
+    const page = query.page ?? 1;
+    const pageSize = OutletsService.CUSTOMER_LEADERBOARD_PAGE_SIZE;
+    const cacheKey = `outlet-customer-lb:${id}:${query.period}:${page}`;
+    const cached = await this.redis.get<
+      Array<{ rank: number; id: string; name: string; points: number }>
+    >(cacheKey);
+    if (cached) return cached;
+
+    const skip = (page - 1) * pageSize;
+    let result: Array<{ rank: number; id: string; name: string; points: number }>;
+
+    if (query.period === 'lifetime') {
+      const users = await this.prisma.user.findMany({
+        where: { registeredOutletId: id, deletedAt: null },
+        orderBy: { wallet: { lifetimePoints: 'desc' } },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          wallet: { select: { lifetimePoints: true } },
+        },
+      });
+      result = users.map((u, i) => ({
+        rank: skip + i + 1,
+        id: u.id,
+        name: [u.firstName, u.lastName].filter(Boolean).join(' ') || u.id,
+        points: Number(u.wallet?.lifetimePoints ?? 0n),
+      }));
+    } else {
+      const now = new Date();
+      const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+      const grouped = await this.prisma.pointsTransaction.groupBy({
+        by: ['userId'],
+        where: {
+          type: 'EARN',
+          status: 'COMPLETED',
+          createdAt: { gte: start, lt: end },
+          user: { registeredOutletId: id, deletedAt: null },
+        },
+        _sum: { points: true },
+        orderBy: { _sum: { points: 'desc' } },
+        skip,
+        take: pageSize,
+      });
+      const users = grouped.length
+        ? await this.prisma.user.findMany({
+            where: { id: { in: grouped.map((g) => g.userId) } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : [];
+      const byId = new Map(users.map((u) => [u.id, u]));
+      result = grouped.map((g, i) => {
+        const u = byId.get(g.userId);
+        const name = u
+          ? [u.firstName, u.lastName].filter(Boolean).join(' ') || u.id
+          : g.userId;
+        return { rank: skip + i + 1, id: g.userId, name, points: g._sum.points ?? 0 };
+      });
+    }
+
+    await this.redis.set(cacheKey, result, 60);
+    return result;
   }
 
   /** Paginated history of every code a customer redeemed at this outlet. */

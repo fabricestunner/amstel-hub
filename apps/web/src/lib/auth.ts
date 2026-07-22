@@ -21,6 +21,7 @@ export interface AuthUser {
   role: UserRole;
   avatarUrl?: string;
   outletId?: string | null;
+  regionId?: string | null;
   points?: number;
   rank?: number;
   region?: string;

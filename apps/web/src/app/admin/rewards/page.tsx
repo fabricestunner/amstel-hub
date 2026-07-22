@@ -58,11 +58,12 @@ const rewardSchema = z.object({
   description: z.string().optional(),
   categoryId: z.string().uuid('Select a category'),
   pointsCost: z.coerce.number().int().min(0),
-  // Blank stock = unlimited inventory. Coerce '' to undefined so the optional
-  // number validation doesn't choke on an empty input.
+  // Blank stock = unlimited inventory. Coerce a blank input to null (an
+  // explicit "clear the cap" signal the API understands) so it still reaches
+  // the request body — JSON.stringify would silently drop `undefined`.
   totalInventory: z.preprocess(
-    (v) => (v === '' || v === null || v === undefined ? undefined : v),
-    z.coerce.number().int().min(0).optional(),
+    (v) => (v === '' || v === null || v === undefined ? null : v),
+    z.coerce.number().int().min(0).nullable(),
   ),
 });
 type RewardForm = z.infer<typeof rewardSchema>;
@@ -114,7 +115,7 @@ function CatalogTab() {
         description: editing?.description ?? '',
         categoryId: editing?.categoryId ?? undefined,
         pointsCost: editing?.pointsCost ?? 0,
-        totalInventory: editing?.totalInventory ?? undefined,
+        totalInventory: editing?.totalInventory ?? null,
       });
     }
   }, [open, editing, reset]);

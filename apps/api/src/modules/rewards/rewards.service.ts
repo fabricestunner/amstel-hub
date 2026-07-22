@@ -121,11 +121,18 @@ export class RewardsService {
     // When the admin changes total stock, move remainingInventory by the same
     // delta so already-consumed units (total - remaining) stay consumed.
     // Clamp at 0 so shrinking the cap below what's been redeemed can't go
-    // negative. Untouched when totalInventory isn't part of the patch.
-    let remainingInventory: number | undefined;
-    if (dto.totalInventory !== undefined) {
+    // negative. Untouched when totalInventory isn't part of the patch. An
+    // explicit `null` means "clear the cap" (unlimited) and must NOT be run
+    // through the delta arithmetic, which only makes sense for numeric caps.
+    let totalInventory: number | null | undefined;
+    let remainingInventory: number | null | undefined;
+    if (dto.totalInventory === null) {
+      totalInventory = null;
+      remainingInventory = null;
+    } else if (dto.totalInventory !== undefined) {
       const consumed =
         (existing.totalInventory ?? 0) - (existing.remainingInventory ?? 0);
+      totalInventory = dto.totalInventory;
       remainingInventory = Math.max(0, dto.totalInventory - Math.max(0, consumed));
     }
 
@@ -157,7 +164,7 @@ export class RewardsService {
         ? { perUserLimit: dto.perUserLimit }
         : {}),
       ...(dto.totalInventory !== undefined
-        ? { totalInventory: dto.totalInventory, remainingInventory }
+        ? { totalInventory, remainingInventory }
         : {}),
       ...(dto.validFrom !== undefined
         ? { validFrom: dto.validFrom ? new Date(dto.validFrom) : null }

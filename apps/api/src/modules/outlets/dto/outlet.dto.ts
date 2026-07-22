@@ -1,12 +1,15 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 import { CodeStatus, CodeType, OutletStatus } from '@prisma/client';
+import { Type } from 'class-transformer';
 import {
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
   Length,
+  Min,
 } from 'class-validator';
 
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
@@ -91,4 +94,18 @@ export class OutletVouchersQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(CodeType)
   type?: CodeType;
+}
+
+export class OutletCustomerLeaderboardQueryDto {
+  @ApiPropertyOptional({ enum: ['monthly', 'lifetime'], default: 'monthly' })
+  @IsOptional()
+  @IsEnum(['monthly', 'lifetime'])
+  period: 'monthly' | 'lifetime' = 'monthly';
+
+  @ApiPropertyOptional({ default: 1, minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page = 1;
 }

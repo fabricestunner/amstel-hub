@@ -26,15 +26,23 @@ export function LeaderboardTable({
   entries,
   isLoading,
   showAvatar = true,
+  highlightId,
 }: {
   entries: LeaderboardEntry[];
   isLoading?: boolean;
   showAvatar?: boolean;
+  /** Row `id` to visually distinguish — e.g. the viewer's own outlet. */
+  highlightId?: string;
 }) {
   return (
     <DataTable
       isLoading={isLoading}
       rows={entries}
+      rowClassName={(r: LeaderboardEntry) =>
+        highlightId && r.id === highlightId
+          ? 'bg-secondary/10 font-medium'
+          : undefined
+      }
       columns={[
         {
           key: 'rank',

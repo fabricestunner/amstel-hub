@@ -39,6 +39,8 @@ export interface DataTableProps<T> {
   emptyDescription?: string;
   /** Stable row key extractor; falls back to index. */
   getRowKey?: (row: T, index: number) => string | number;
+  /** Optional per-row className, e.g. to highlight the viewer's own row. */
+  rowClassName?: (row: T) => string | undefined;
   className?: string;
 }
 
@@ -55,6 +57,7 @@ export function DataTable<T>({
   emptyTitle = 'No results',
   emptyDescription = 'Try adjusting your search or filters.',
   getRowKey,
+  rowClassName,
   className,
 }: DataTableProps<T>) {
   const showPagination = onPageChange && totalPages > 1;
@@ -108,7 +111,10 @@ export function DataTable<T>({
               </TableRow>
             ) : (
               rows.map((row, index) => (
-                <TableRow key={getRowKey ? getRowKey(row, index) : index}>
+                <TableRow
+                  key={getRowKey ? getRowKey(row, index) : index}
+                  className={rowClassName?.(row)}
+                >
                   {columns.map((col) => (
                     <TableCell key={col.key} className={col.className}>
                       {col.render

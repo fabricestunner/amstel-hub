@@ -132,6 +132,20 @@ export class LoyaltyService {
           },
         });
 
+        // Credit the outlet the code was attributed to. totalPoints never
+        // decreases (drives national/regional leaderboard rank);
+        // availablePoints is the outlet's spendable balance for outlet
+        // rewards and decrements only on outlet-reward redemption.
+        if (attributedOutletId) {
+          await tx.outlet.update({
+            where: { id: attributedOutletId },
+            data: {
+              totalPoints: { increment: code.pointsValue },
+              availablePoints: { increment: code.pointsValue },
+            },
+          });
+        }
+
         await tx.pointsTransaction.create({
           data: {
             userId,

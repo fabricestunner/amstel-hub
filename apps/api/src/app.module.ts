@@ -21,6 +21,7 @@ import { HealthModule } from './modules/health/health.module';
 import { LeaderboardsModule } from './modules/leaderboards/leaderboards.module';
 import { LoyaltyModule } from './modules/loyalty/loyalty.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { OutletRewardsModule } from './modules/outlet-rewards/outlet-rewards.module';
 import { OutletsModule } from './modules/outlets/outlets.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { RewardCategoriesModule } from './modules/reward-categories/reward-categories.module';
@@ -62,6 +63,7 @@ import { VouchersModule } from './modules/vouchers/vouchers.module';
     LoyaltyModule,
     CampaignsModule,
     OutletsModule,
+    OutletRewardsModule,
     VouchersModule,
     RewardsModule,
     RewardCategoriesModule,

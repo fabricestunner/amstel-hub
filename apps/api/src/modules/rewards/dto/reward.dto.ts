@@ -9,6 +9,7 @@ import {
   IsUUID,
   Length,
   Min,
+  ValidateIf,
 } from 'class-validator';
 
 import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
@@ -53,11 +54,15 @@ export class CreateRewardDto {
   @Min(0)
   pointsCost!: number;
 
-  @ApiPropertyOptional({ description: 'null = unlimited inventory' })
+  @ApiPropertyOptional({
+    description:
+      'Inventory cap (null = unlimited). Omit to leave unchanged on update; pass null explicitly to clear an existing cap.',
+  })
   @IsOptional()
+  @ValidateIf((_, value) => value !== null)
   @IsInt()
   @Min(0)
-  totalInventory?: number;
+  totalInventory?: number | null;
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()

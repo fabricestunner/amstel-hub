@@ -18,6 +18,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "ts-node prisma/seed.ts",
     "backfill:reward-categories": "ts-node prisma/backfill-reward-categories.ts",
+    "backfill:outlet-points": "ts-node prisma/backfill-outlet-points.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {

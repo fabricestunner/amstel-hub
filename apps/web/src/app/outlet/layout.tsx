@@ -1,9 +1,11 @@
 'use client';
 
 import {
+  Award,
   FileText,
   Gift,
   LayoutDashboard,
+  Sparkles,
   Ticket,
   Trophy,
   Users,
@@ -18,7 +20,9 @@ const nav = [
   { href: '/outlet/customers', label: 'Customers', icon: Users },
   { href: '/outlet/vouchers', label: 'Vouchers', icon: Ticket },
   { href: '/outlet/redemptions', label: 'Redemptions', icon: Gift },
+  { href: '/outlet/rewards', label: 'Outlet Rewards', icon: Sparkles },
   { href: '/outlet/tournaments', label: 'Tournaments', icon: Trophy },
+  { href: '/outlet/leaderboard', label: 'Leaderboard', icon: Award },
   { href: '/outlet/reports', label: 'Reports', icon: FileText },
 ];
 

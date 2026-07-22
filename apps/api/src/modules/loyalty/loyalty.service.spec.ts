@@ -33,6 +33,7 @@ describe('LoyaltyService.redeemCode', () => {
       },
       codeRedemption: { create: jest.fn().mockResolvedValue({ id: 'red-1' }) },
       wallet: { update: jest.fn().mockResolvedValue({ availablePoints: 120n }) },
+      outlet: { update: jest.fn().mockResolvedValue({}) },
       pointsTransaction: { create: jest.fn().mockResolvedValue({}) },
     };
     return {
@@ -111,6 +112,7 @@ describe('LoyaltyService.redeemCode', () => {
     };
     const redemptionCreate = jest.fn().mockResolvedValue({ id: 'red-1' });
     const txCreate = jest.fn().mockResolvedValue({});
+    const outletUpdate = jest.fn().mockResolvedValue({});
     const tx = {
       loyaltyCode: {
         findUnique: jest.fn().mockResolvedValue(code),
@@ -118,6 +120,7 @@ describe('LoyaltyService.redeemCode', () => {
       },
       codeRedemption: { create: redemptionCreate },
       wallet: { update: jest.fn().mockResolvedValue({ availablePoints: 120n }) },
+      outlet: { update: outletUpdate },
       pointsTransaction: { create: txCreate },
     };
     const prisma = {
@@ -201,5 +204,87 @@ describe('LoyaltyService.redeemCode', () => {
     });
     // Should short-circuit before touching the database.
     expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('credits the attributed outlet with lifetime and available points', async () => {
+    const code = {
+      id: 'c1',
+      status: 'ACTIVE',
+      pointsValue: 20,
+      type: 'QR',
+      campaignId: 'camp1',
+      outletId: 'outlet-99',
+      expiresAt: null,
+      campaign: { status: 'ACTIVE', name: 'Summer Promo' },
+    };
+    const outletUpdate = jest.fn().mockResolvedValue({});
+    const tx = {
+      loyaltyCode: {
+        findUnique: jest.fn().mockResolvedValue(code),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      codeRedemption: { create: jest.fn().mockResolvedValue({ id: 'red-1' }) },
+      wallet: { update: jest.fn().mockResolvedValue({ availablePoints: 120n }) },
+      outlet: { update: outletUpdate },
+      pointsTransaction: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      outlet: { findUnique: jest.fn().mockResolvedValue(null) },
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ role: 'CUSTOMER', assignedOutletId: null }),
+      },
+      $transaction: jest.fn((cb: (t: typeof tx) => unknown) => cb(tx)),
+    } as unknown as PrismaService;
+
+    const service = new LoyaltyService(prisma, crypto, fraud, notifications);
+    await service.redeemCode('u1', dto, ctx);
+
+    expect(outletUpdate).toHaveBeenCalledWith({
+      where: { id: 'outlet-99' },
+      data: {
+        totalPoints: { increment: 20 },
+        availablePoints: { increment: 20 },
+      },
+    });
+  });
+
+  it('does not touch outlet points when no outlet is attributed', async () => {
+    const code = {
+      id: 'c1',
+      status: 'ACTIVE',
+      pointsValue: 20,
+      type: 'QR',
+      campaignId: 'camp1',
+      outletId: null,
+      expiresAt: null,
+      campaign: { status: 'ACTIVE', name: 'Summer Promo' },
+    };
+    const outletUpdate = jest.fn().mockResolvedValue({});
+    const tx = {
+      loyaltyCode: {
+        findUnique: jest.fn().mockResolvedValue(code),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+      codeRedemption: { create: jest.fn().mockResolvedValue({ id: 'red-1' }) },
+      wallet: { update: jest.fn().mockResolvedValue({ availablePoints: 120n }) },
+      outlet: { update: outletUpdate },
+      pointsTransaction: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      outlet: { findUnique: jest.fn().mockResolvedValue(null) },
+      user: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ role: 'CUSTOMER', assignedOutletId: null }),
+      },
+      $transaction: jest.fn((cb: (t: typeof tx) => unknown) => cb(tx)),
+    } as unknown as PrismaService;
+
+    const service = new LoyaltyService(prisma, crypto, fraud, notifications);
+    await service.redeemCode('u1', dto, ctx);
+
+    expect(outletUpdate).not.toHaveBeenCalled();
   });
 });

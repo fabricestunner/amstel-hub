@@ -29,7 +29,7 @@ function CustomerPanel() {
 }
 
 function OutletPanel() {
-  const { data, isLoading } = useOutletLeaderboard('lifetime');
+  const { data, isLoading } = useOutletLeaderboard('national');
   return (
     <Card>
       <CardHeader>

@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  Award,
   Building2,
   FileText,
   Gift,
@@ -23,6 +24,7 @@ const nav = [
   { href: '/admin', label: 'Overview', icon: LayoutDashboard },
   { href: '/admin/campaigns', label: 'Campaigns', icon: Megaphone },
   { href: '/admin/rewards', label: 'Rewards', icon: Gift },
+  { href: '/admin/outlet-rewards', label: 'Outlet Rewards', icon: Award },
   { href: '/admin/tournaments', label: 'Tournaments', icon: Trophy },
   { href: '/admin/outlets', label: 'Outlets', icon: Building2 },
   { href: '/admin/vouchers', label: 'Vouchers', icon: Ticket },

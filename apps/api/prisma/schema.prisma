@@ -433,7 +433,14 @@ model Outlet {
 
   // denormalized rolling metrics (refreshed by leaderboard job)
   totalSales      Decimal @default(0) @db.Decimal(14, 2)
+  // Lifetime points earned at this outlet — never decreases, drives
+  // OUTLET_NATIONAL/OUTLET_REGIONAL leaderboard rank. Written by
+  // LoyaltyService.redeemCode.
   totalPoints     BigInt  @default(0)
+  // Spendable balance for outlet-reward redemptions. Increments alongside
+  // totalPoints on every code redemption; decrements when the outlet spends
+  // on an OutletReward. Redeeming never affects leaderboard rank.
+  availablePoints BigInt  @default(0)
   customerCount   Int     @default(0)
   nationalRank    Int?
   regionalRank    Int?
@@ -446,6 +453,7 @@ model Outlet {
   leaderboardRows LeaderboardEntry[]
   tournamentRegs      TournamentRegistration[] @relation("TournamentOutlet")
   rewardCollections   RewardRedemption[]       @relation("RewardCollectionOutlet")
+  outletRewardRedemptions OutletRewardRedemption[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -656,6 +664,53 @@ model RewardRedemption {
   @@index([rewardId, status])
   @@index([collectionOutletId])
   @@map("reward_redemptions")
+}
+
+// Outlets redeem their own accumulated points for prizes — a separate flat,
+// standing catalog from the customer-facing Reward system above. Not
+// campaign-scoped: outlets earn points across every campaign they redeem
+// codes for.
+model OutletReward {
+  id                 String       @id @default(uuid()) @db.Uuid
+  name               String
+  description        String?
+  imageUrl           String?
+  status             RewardStatus @default(ACTIVE)
+  pointsCost         Int
+  totalInventory     Int? // null = unlimited
+  remainingInventory Int?
+  validFrom          DateTime?
+  validUntil         DateTime?
+
+  redemptions OutletRewardRedemption[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([status])
+  @@map("outlet_rewards")
+}
+
+model OutletRewardRedemption {
+  id             String           @id @default(uuid()) @db.Uuid
+  outletRewardId String           @db.Uuid
+  outletReward   OutletReward     @relation(fields: [outletRewardId], references: [id])
+  outletId       String           @db.Uuid
+  outlet         Outlet           @relation(fields: [outletId], references: [id])
+  status         RedemptionStatus @default(PENDING)
+  pointsSpent    Int
+  requestedById  String           @db.Uuid
+  approvedById   String?          @db.Uuid
+  fulfilledAt    DateTime?
+  notes          String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([outletId])
+  @@index([outletRewardId, status])
+  @@map("outlet_reward_redemptions")
 }
 
 // ════════════════════════════════════════════════════════════════════════

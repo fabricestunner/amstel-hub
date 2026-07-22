@@ -34,14 +34,41 @@ export function useCustomerLeaderboard(period: 'monthly' | 'lifetime' = 'monthly
   });
 }
 
-export function useOutletLeaderboard(period: 'monthly' | 'lifetime' = 'monthly') {
-  const type = period === 'lifetime' ? 'OUTLET_NATIONAL' : 'OUTLET_NATIONAL';
+/**
+ * Outlets don't have a "monthly" ranking — only national and regional (see
+ * OutletLeaderboardQuery.type on the API). Regional requires a regionId.
+ */
+export function useOutletLeaderboard(
+  scope: 'national' | 'regional',
+  regionId?: string,
+) {
+  const type = scope === 'regional' ? 'OUTLET_REGIONAL' : 'OUTLET_NATIONAL';
   return useQuery({
-    queryKey: queryKeys.leaderboardOutlets(period),
-    queryFn: () =>
-      api.get<LeaderboardEntry[] | Paginated<LeaderboardEntry>>(
-        `/leaderboards/outlets?type=${type}`,
-      ),
+    queryKey: queryKeys.leaderboardOutlets(scope, regionId),
+    queryFn: () => {
+      const qs = new URLSearchParams({ type });
+      if (scope === 'regional' && regionId) qs.set('regionId', regionId);
+      return api.get<LeaderboardEntry[] | Paginated<LeaderboardEntry>>(
+        `/leaderboards/outlets?${qs.toString()}`,
+      );
+    },
+    enabled: scope === 'national' || Boolean(regionId),
     select: selectEntries,
+  });
+}
+
+/** Top customers registered at a specific outlet — the outlet manager's own
+ *  customer ranking, distinct from the platform-wide customer leaderboard. */
+export function useOutletCustomerLeaderboard(
+  outletId: string | undefined,
+  period: 'monthly' | 'lifetime' = 'monthly',
+) {
+  return useQuery({
+    queryKey: queryKeys.outletCustomerLeaderboard(outletId, period),
+    queryFn: () =>
+      api.get<LeaderboardEntry[]>(
+        `/outlets/${outletId}/customers/leaderboard?period=${period}`,
+      ),
+    enabled: Boolean(outletId),
   });
 }

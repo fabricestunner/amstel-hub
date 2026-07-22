@@ -40,6 +40,7 @@ export interface OutletDashboard {
   name?: string;
   nationalRank?: number;
   regionalRank?: number;
+  availablePoints?: number;
   campaignSales?: number;
   pointsGenerated?: number;
   crates?: number;

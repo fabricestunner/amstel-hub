@@ -3,8 +3,14 @@ import { Prisma } from '@prisma/client';
 
 import { AuthenticatedUser } from '../../common/decorators';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { RedisService } from '../../common/redis/redis.service';
 import { CreateOutletDto, ListOutletsDto } from './dto/outlet.dto';
 import { OutletsService } from './outlets.service';
+
+const redis = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(undefined),
+} as unknown as RedisService;
 
 /**
  * Prisma is mocked. These tests pin the contract of the write path: whatever
@@ -55,6 +61,7 @@ describe('OutletsService write path', () => {
   it('returns a JSON-serializable outlet (BigInt totalPoints must not escape)', async () => {
     const service = new OutletsService(
       buildPrisma(jest.fn().mockResolvedValue(createdRow())),
+      redis,
     );
 
     const result = await service.create(dto);
@@ -67,6 +74,7 @@ describe('OutletsService write path', () => {
   it('returns the same serialized shape as list()', async () => {
     const service = new OutletsService(
       buildPrisma(jest.fn().mockResolvedValue(createdRow())),
+      redis,
     );
 
     const result = await service.create(dto);
@@ -89,6 +97,7 @@ describe('OutletsService write path', () => {
     );
     const service = new OutletsService(
       buildPrisma(jest.fn().mockRejectedValue(duplicate)),
+      redis,
     );
 
     await expect(service.create(dto)).rejects.toBeInstanceOf(ConflictException);
@@ -101,6 +110,7 @@ describe('OutletsService write path', () => {
     );
     const service = new OutletsService(
       buildPrisma(jest.fn().mockRejectedValue(duplicate)),
+      redis,
     );
 
     await expect(
@@ -186,7 +196,7 @@ describe('OutletsService list aggregation', () => {
   }
 
   it('reports live points and distinct customers instead of the stale columns', async () => {
-    const service = new OutletsService(buildPrisma(groupByMock()));
+    const service = new OutletsService(buildPrisma(groupByMock()), redis);
 
     const result = await service.list(new ListOutletsDto(), admin);
 
@@ -198,7 +208,7 @@ describe('OutletsService list aggregation', () => {
 
   it('issues exactly two grouped queries for the whole page (no N+1)', async () => {
     const groupBy = groupByMock();
-    const service = new OutletsService(buildPrisma(groupBy));
+    const service = new OutletsService(buildPrisma(groupBy), redis);
 
     await service.list(new ListOutletsDto(), admin);
 
@@ -207,7 +217,7 @@ describe('OutletsService list aggregation', () => {
 
   it('falls back to zero for outlets with no redemptions', async () => {
     const groupBy = jest.fn().mockResolvedValue([]);
-    const service = new OutletsService(buildPrisma(groupBy));
+    const service = new OutletsService(buildPrisma(groupBy), redis);
 
     const result = await service.list(new ListOutletsDto(), admin);
 
@@ -220,7 +230,7 @@ describe('OutletsService list aggregation', () => {
   });
 
   it('derives outlet crate points as floor(scans / 24)', async () => {
-    const service = new OutletsService(buildPrisma(groupByMock()));
+    const service = new OutletsService(buildPrisma(groupByMock()), redis);
 
     const result = await service.list(new ListOutletsDto(), admin);
 
@@ -228,6 +238,73 @@ describe('OutletsService list aggregation', () => {
       // 50 scans → 2 crates; 10 scans → 0 crates.
       expect.objectContaining({ id: OUTLET_A, crates: 2 }),
       expect.objectContaining({ id: OUTLET_B, crates: 0 }),
+    ]);
+  });
+});
+
+describe('OutletsService.customerLeaderboard', () => {
+  const OUTLET_A = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+  const outletManager = (outletId: string | null) =>
+    ({
+      id: 'mgr-1',
+      role: 'OUTLET_MANAGER',
+      regionId: null,
+      outletId,
+    }) as unknown as import('../../common/decorators').AuthenticatedUser;
+
+  function buildPrisma(opts: {
+    outlet?: { id: string; regionId: string } | null;
+    users?: Array<{
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      wallet: { lifetimePoints: bigint } | null;
+    }>;
+  }): PrismaService {
+    return {
+      outlet: {
+        findFirst: jest
+          .fn()
+          .mockResolvedValue(opts.outlet ?? { id: OUTLET_A, regionId: 'r1' }),
+      },
+      user: {
+        findMany: jest.fn().mockResolvedValue(opts.users ?? []),
+      },
+    } as unknown as PrismaService;
+  }
+
+  it('forbids an OUTLET_MANAGER from another outlet', async () => {
+    const service = new OutletsService(buildPrisma({}), redis);
+    await expect(
+      service.customerLeaderboard(
+        OUTLET_A,
+        { period: 'lifetime', page: 1 },
+        outletManager('some-other-outlet'),
+      ),
+    ).rejects.toThrow('Outlet outside your scope');
+  });
+
+  it('ranks by lifetime points descending for period=lifetime', async () => {
+    const service = new OutletsService(
+      buildPrisma({
+        users: [
+          { id: 'u1', firstName: 'Ada', lastName: 'A', wallet: { lifetimePoints: 50n } },
+          { id: 'u2', firstName: 'Bo', lastName: 'B', wallet: { lifetimePoints: 200n } },
+        ],
+      }),
+      redis,
+    );
+
+    const result = await service.customerLeaderboard(
+      OUTLET_A,
+      { period: 'lifetime', page: 1 },
+      outletManager(OUTLET_A),
+    );
+
+    expect(result).toEqual([
+      { rank: 1, id: 'u1', name: 'Ada A', points: 50 },
+      { rank: 2, id: 'u2', name: 'Bo B', points: 200 },
     ]);
   });
 });
