@@ -42,6 +42,7 @@ describe('OutletsService write path', () => {
       managerId: null,
       totalSales: new Prisma.Decimal(0),
       totalPoints: BigInt(0),
+      availablePoints: BigInt(0),
       customerCount: 0,
       nationalRank: null,
       regionalRank: null,
@@ -151,6 +152,7 @@ describe('OutletsService list aggregation', () => {
       managerId: null,
       totalSales: new Prisma.Decimal(0),
       totalPoints: BigInt(0), // stale — must NOT be what list() reports
+      availablePoints: BigInt(0),
       customerCount: 0, // stale — must NOT be what list() reports
       nationalRank: null,
       regionalRank: null,

@@ -1,4 +1,8 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -63,7 +67,8 @@ describe('OutletRewardsService.redeem', () => {
     reward: unknown;
     outletAvailablePoints: bigint;
     claimedCount?: number;
-  }): PrismaService {
+    managedOutlet?: { id: string; deletedAt: Date | null } | null;
+  }): PrismaService & { $transaction: jest.Mock } {
     const tx = {
       outletReward: {
         findFirst: jest.fn().mockResolvedValue(opts.reward),
@@ -82,8 +87,19 @@ describe('OutletRewardsService.redeem', () => {
       },
     };
     return {
+      // Top-level (non-tx) outlet.findUnique backs requireManagedOutletId's
+      // lookup by managerId, independent of the tx-scoped lookup above.
+      outlet: {
+        findUnique: jest
+          .fn()
+          .mockResolvedValue(
+            opts.managedOutlet !== undefined
+              ? opts.managedOutlet
+              : { id: OUTLET_ID, deletedAt: null },
+          ),
+      },
       $transaction: jest.fn((cb: (t: typeof tx) => unknown) => cb(tx)),
-    } as unknown as PrismaService;
+    } as unknown as PrismaService & { $transaction: jest.Mock };
   }
 
   it('throws BadRequestException when the outlet has insufficient points', async () => {
@@ -94,7 +110,7 @@ describe('OutletRewardsService.redeem', () => {
     const service = new OutletRewardsService(prisma, notifications);
 
     await expect(
-      service.redeem(OUTLET_ID, REWARD_ID, MANAGER_ID),
+      service.redeem(MANAGER_ID, REWARD_ID),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -106,7 +122,7 @@ describe('OutletRewardsService.redeem', () => {
     const service = new OutletRewardsService(prisma, notifications);
 
     await expect(
-      service.redeem(OUTLET_ID, REWARD_ID, MANAGER_ID),
+      service.redeem(MANAGER_ID, REWARD_ID),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -119,7 +135,7 @@ describe('OutletRewardsService.redeem', () => {
     const service = new OutletRewardsService(prisma, notifications);
 
     await expect(
-      service.redeem(OUTLET_ID, REWARD_ID, MANAGER_ID),
+      service.redeem(MANAGER_ID, REWARD_ID),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -130,10 +146,25 @@ describe('OutletRewardsService.redeem', () => {
     });
     const service = new OutletRewardsService(prisma, notifications);
 
-    const result = await service.redeem(OUTLET_ID, REWARD_ID, MANAGER_ID);
+    const result = await service.redeem(MANAGER_ID, REWARD_ID);
 
     expect(result.pointsSpent).toBe(300);
     expect(result.availablePoints).toBe(700);
+  });
+
+  it('throws ForbiddenException and debits nothing when the user has no managed outlet', async () => {
+    const prisma = buildPrisma({
+      reward: { id: REWARD_ID, status: 'ACTIVE', pointsCost: 300, validFrom: null, validUntil: null, remainingInventory: null },
+      outletAvailablePoints: 1000n,
+      managedOutlet: null,
+    });
+    const service = new OutletRewardsService(prisma, notifications);
+
+    await expect(
+      service.redeem(MANAGER_ID, REWARD_ID),
+    ).rejects.toThrow(ForbiddenException);
+    // The guard must fail before the spending transaction is ever entered.
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
 

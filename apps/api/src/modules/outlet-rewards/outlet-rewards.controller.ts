@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -55,13 +54,13 @@ export class OutletRewardsController {
     return this.outletRewards.softDelete(id);
   }
 
+  // The outlet is resolved server-side from the requester's managed-outlet
+  // link (OutletRewardsService.requireManagedOutletId), never from the JWT's
+  // ambient outletId — see that method's doc comment for why.
   @Roles('OUTLET_MANAGER')
   @Post('outlet-rewards/:id/redeem')
   redeem(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    if (!user.outletId) {
-      throw new ForbiddenException('Your account is not linked to an outlet');
-    }
-    return this.outletRewards.redeem(user.outletId, id, user.id);
+    return this.outletRewards.redeem(user.id, id);
   }
 
   // NOTE: deviates from the original task brief. OutletRewardsService.listRedemptions

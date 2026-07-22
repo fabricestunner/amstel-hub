@@ -16,6 +16,10 @@ services:
     startCommand: pnpm --filter @amstel/api exec prisma db push --accept-data-loss && pnpm --filter @amstel/api db:seed; node apps/api/dist/main.js
     healthCheckPath: /api/v1/health
     autoDeploy: true
+    # Custom domain for the API. Render provisions TLS automatically once the
+    # DNS record (CNAME → this service) is verified in the Render dashboard.
+    domains:
+      - api.friendsofamstel.rw
     envVars:
       - key: NODE_ENV
         value: production

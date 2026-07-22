@@ -77,9 +77,13 @@ export class OutletsService {
 
   /**
    * Live per-outlet totals derived from code redemptions: sum of points earned
-   * at the outlet plus the number of distinct customers who earned them. The
-   * denormalized `Outlet.totalPoints` / `customerCount` columns are never
-   * written, so aggregating here is the only way these numbers are real.
+   * at the outlet plus the number of distinct customers who earned them.
+   * `Outlet.totalPoints` is now incremented in step by
+   * `LoyaltyService.redeemCode` (and can be rebuilt via the backfill script),
+   * but we still aggregate live here rather than reading the column: the live
+   * aggregate is authoritative and self-healing, independent of whether the
+   * backfill has ever run. `Outlet.customerCount` is still never written, so
+   * `customers` below is always derived from this aggregation.
    * Two grouped queries for the whole page of outlets — no N+1.
    */
   private async redemptionStats(
@@ -305,6 +309,7 @@ export class OutletsService {
     return {
       outletId: outlet.id,
       name: outlet.name,
+      regionId: outlet.regionId,
       nationalRank: outlet.nationalRank,
       regionalRank: outlet.regionalRank,
       availablePoints: Number(outlet.availablePoints),
@@ -645,6 +650,7 @@ export class OutletsService {
   private serialize(
     outlet: {
       totalPoints: bigint;
+      availablePoints: bigint;
       totalSales: Prisma.Decimal;
       customerCount: number;
       status: string;
@@ -655,15 +661,20 @@ export class OutletsService {
     },
     stats?: { points: number; customers: number; scans: number },
   ) {
-    const { region, province, district, totalPoints, totalSales, customerCount, status, ...rest } = outlet;
+    const { region, province, district, totalPoints, availablePoints, totalSales, customerCount, status, ...rest } = outlet;
     return {
       ...rest,
       region: region?.name ?? null,
       province: province?.name ?? null,
       district: district?.name ?? null,
       status: status.toLowerCase(),
-      // Prefer live redemption-derived stats; the denormalized columns are
-      // never updated and stay at 0.
+      availablePoints: Number(availablePoints ?? 0n),
+      // Prefer live redemption-derived stats for the earned/generated total
+      // and customer count. `totalPoints` is now kept in sync by
+      // LoyaltyService.redeemCode (and by the backfill script), but the live
+      // aggregate is still authoritative and self-healing here since it
+      // doesn't depend on the backfill having run; `customerCount` is still
+      // never written, so it stays at 0 whenever `stats` isn't available.
       pointsGenerated: stats ? stats.points : Number(totalPoints),
       customers: stats ? stats.customers : customerCount,
       crates: stats ? Math.floor(stats.scans / 24) : 0,

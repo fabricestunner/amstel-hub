@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -118,12 +119,43 @@ export class OutletRewardsService {
   }
 
   /**
+   * The outlet this user actually manages. Deliberately NOT the JWT's
+   * ambient `outletId`, which falls back to the outlet a user registered
+   * at as a customer — that must never confer authority to spend an
+   * outlet's points. Returns null (rather than throwing) so read-only
+   * callers like listRedemptions can degrade to "no outlet" instead of
+   * being forced into a hard failure.
+   */
+  private async findManagedOutletId(userId: string): Promise<string | null> {
+    const outlet = await this.prisma.outlet.findUnique({
+      where: { managerId: userId },
+      select: { id: true, deletedAt: true },
+    });
+    if (!outlet || outlet.deletedAt) return null;
+    return outlet.id;
+  }
+
+  /** Same as findManagedOutletId, but throws for callers (like redeem) that require one. */
+  private async requireManagedOutletId(userId: string): Promise<string> {
+    const outletId = await this.findManagedOutletId(userId);
+    if (!outletId) {
+      throw new ForbiddenException('Your account does not manage an outlet');
+    }
+    return outletId;
+  }
+
+  /**
    * Redeem an outlet reward using the outlet's own availablePoints. Mirrors
    * RewardsService.redeem: serializable transaction validates status/window/
    * inventory/balance, then decrements availablePoints (NOT totalPoints —
    * spending never affects leaderboard rank) and inventory atomically.
+   *
+   * The outlet is resolved from the requester's managed-outlet link
+   * (requireManagedOutletId), never from caller-supplied input — this is
+   * the authority check for spending the outlet's points.
    */
-  async redeem(outletId: string, outletRewardId: string, requestedById: string) {
+  async redeem(requestedById: string, outletRewardId: string) {
+    const outletId = await this.requireManagedOutletId(requestedById);
     const result = await this.prisma.$transaction(
       async (tx: Prisma.TransactionClient) => {
         const reward = await tx.outletReward.findFirst({
@@ -220,15 +252,19 @@ export class OutletRewardsService {
 
   /**
    * Redemption queue. Admins see every redemption; an OUTLET_MANAGER is
-   * force-scoped to their own outlet — enforced here from `user.role`/
-   * `user.outletId`, not delegated to the caller. A manager with no
-   * assigned outlet matches nothing (`__none__`) rather than everything.
+   * force-scoped to their own outlet — resolved here via the managed-outlet
+   * relationship (findManagedOutletId), not the JWT's ambient `outletId`
+   * (which can fall back to an outlet the user merely registered at as a
+   * customer). A manager with no managed outlet matches nothing (`__none__`)
+   * rather than everything.
    */
   async listRedemptions(query: ListOutletRewardRedemptionsDto, user: AuthenticatedUser) {
+    const managedOutletId =
+      user.role === 'OUTLET_MANAGER' ? await this.findManagedOutletId(user.id) : undefined;
     const where: Prisma.OutletRewardRedemptionWhereInput = {
       ...(query.status ? { status: query.status } : {}),
       ...(user.role === 'OUTLET_MANAGER'
-        ? { outletId: user.outletId ?? '__none__' }
+        ? { outletId: managedOutletId ?? '__none__' }
         : {}),
     };
     const [items, total] = await Promise.all([
@@ -268,7 +304,7 @@ export class OutletRewardsService {
       where: { id },
     });
     if (!redemption) throw new NotFoundException('Redemption not found');
-    return this.prisma.outletRewardRedemption.update({
+    const updated = await this.prisma.outletRewardRedemption.update({
       where: { id },
       data: {
         status,
@@ -276,5 +312,51 @@ export class OutletRewardsService {
         ...(status === 'FULFILLED' ? { fulfilledAt: new Date() } : {}),
       },
     });
+
+    // Tell the outlet's manager their prize is ready / handed over. REJECTED
+    // stays silent (no auto-refund, nothing actionable to announce).
+    // Fire-and-forget: the status change already committed.
+    if (status === 'APPROVED' || status === 'FULFILLED') {
+      void this.notifyRedemptionStatus(redemption, status);
+    }
+
+    return updated;
+  }
+
+  /** Notify the outlet's manager that their outlet's reward is ready / collected. */
+  private async notifyRedemptionStatus(
+    redemption: { outletId: string; outletRewardId: string },
+    status: 'APPROVED' | 'FULFILLED',
+  ) {
+    try {
+      const [outlet, reward] = await Promise.all([
+        this.prisma.outlet.findUnique({
+          where: { id: redemption.outletId },
+          select: { managerId: true },
+        }),
+        this.prisma.outletReward.findUnique({
+          where: { id: redemption.outletRewardId },
+          select: { name: true },
+        }),
+      ]);
+      if (!outlet?.managerId) return;
+      const rewardName = reward?.name ?? 'your outlet reward';
+
+      if (status === 'APPROVED') {
+        await this.notifications.notifyAllChannels(outlet.managerId, {
+          title: 'Outlet reward ready to collect',
+          body: `Good news! Your outlet's ${rewardName} is approved and ready to collect.`,
+          smsBody: `Amstel Rewards: Your outlet's ${rewardName} is ready to collect.`,
+        });
+      } else {
+        await this.notifications.notifyAllChannels(outlet.managerId, {
+          title: 'Outlet reward collected',
+          body: `Your outlet's ${rewardName} has been handed over. Enjoy!`,
+          smsBody: `Amstel Rewards: Your outlet's ${rewardName} has been handed over. Enjoy!`,
+        });
+      }
+    } catch {
+      // swallow — the status change already succeeded
+    }
   }
 }

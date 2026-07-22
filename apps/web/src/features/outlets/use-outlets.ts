@@ -38,6 +38,7 @@ export interface GeoItem {
 export interface OutletDashboard {
   outletId: string;
   name?: string;
+  regionId?: string;
   nationalRank?: number;
   regionalRank?: number;
   availablePoints?: number;

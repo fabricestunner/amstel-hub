@@ -64,8 +64,7 @@ export class LoyaltyService {
       select: { role: true, assignedOutletId: true },
     });
 
-    const result = await this.prisma.$transaction(
-      async (tx) => {
+    const result = await this.runRedeemTransaction(async (tx) => {
         const code = await tx.loyaltyCode.findUnique({
           where: { codeHash },
           include: { campaign: true },
@@ -166,12 +165,53 @@ export class LoyaltyService {
           campaign: code.campaign.name,
           outlet: outlet?.name,
         };
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+      });
 
     void this.dispatchRedemptionNotifications(userId, result.pointsEarned, result.availablePoints, result.campaign, result.outlet);
     return result;
+  }
+
+  /**
+   * Runs `fn` inside the redemption's serializable transaction, retrying on
+   * Postgres serialization failures (Prisma P2034) with a short jittered
+   * backoff. This transaction now writes `outlets(id)`, which makes a busy
+   * outlet a hot row: two customers scanning within milliseconds at the same
+   * outlet can conflict, and Postgres aborts one side with P2034 — the
+   * transaction rolls back cleanly (the code stays ACTIVE, rescannable), so
+   * retrying is safe.
+   *
+   * Only P2034 is retried. Every other error — including the deliberate
+   * ConflictException for an already-redeemed code and the fraud 429 (which
+   * is thrown before this method is even called) — propagates immediately
+   * and unchanged. After the final attempt, a persistent P2034 is converted
+   * to a ConflictException rather than surfacing as a raw 500.
+   */
+  private async runRedeemTransaction<T>(
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    const MAX_ATTEMPTS = 3;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        return await this.prisma.$transaction(fn, {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        });
+      } catch (err) {
+        const isSerializationFailure =
+          err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2034';
+        if (!isSerializationFailure) throw err;
+        if (attempt === MAX_ATTEMPTS) {
+          throw new ConflictException(
+            'That scan collided with another at this outlet. Please try again.',
+          );
+        }
+        const backoffMs = 25 + Math.random() * 25;
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      }
+    }
+    // Unreachable — the loop above always returns or throws.
+    throw new ConflictException(
+      'That scan collided with another at this outlet. Please try again.',
+    );
   }
 
   private async dispatchRedemptionNotifications(

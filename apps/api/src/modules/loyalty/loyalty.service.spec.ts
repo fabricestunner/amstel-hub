@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { CryptoService } from '../../common/crypto/crypto.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -286,5 +287,100 @@ describe('LoyaltyService.redeemCode', () => {
     await service.redeemCode('u1', dto, ctx);
 
     expect(outletUpdate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The redeem transaction now writes outlets(id), making a busy outlet a hot
+   * row: Postgres can abort one side of a concurrent redemption with P2034
+   * ("could not serialize access due to concurrent update"). These tests
+   * cover the bounded retry added for that failure mode.
+   */
+  describe('P2034 serialization-failure retry', () => {
+    function buildTx() {
+      const code = {
+        id: 'c1',
+        status: 'ACTIVE',
+        pointsValue: 20,
+        type: 'QR',
+        campaignId: 'camp1',
+        expiresAt: null,
+        campaign: { status: 'ACTIVE', name: 'Summer Promo' },
+      };
+      return {
+        loyaltyCode: {
+          findUnique: jest.fn().mockResolvedValue(code),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        codeRedemption: { create: jest.fn().mockResolvedValue({ id: 'red-1' }) },
+        wallet: { update: jest.fn().mockResolvedValue({ availablePoints: 120n }) },
+        outlet: { update: jest.fn().mockResolvedValue({}) },
+        pointsTransaction: { create: jest.fn().mockResolvedValue({}) },
+      };
+    }
+
+    function p2034(): Prisma.PrismaClientKnownRequestError {
+      return new Prisma.PrismaClientKnownRequestError(
+        'could not serialize access due to concurrent update',
+        { code: 'P2034', clientVersion: '5.22.0' },
+      );
+    }
+
+    it('retries a P2034 on the first attempt and succeeds on the second', async () => {
+      const tx = buildTx();
+      const transaction = jest
+        .fn()
+        .mockRejectedValueOnce(p2034())
+        .mockImplementationOnce((cb: (t: typeof tx) => unknown) => cb(tx));
+      const prisma = {
+        outlet: { findUnique: jest.fn().mockResolvedValue(null) },
+        user: {
+          findUnique: jest
+            .fn()
+            .mockResolvedValue({ role: 'CUSTOMER', assignedOutletId: null }),
+        },
+        $transaction: transaction,
+      } as unknown as PrismaService;
+
+      const service = new LoyaltyService(prisma, crypto, fraud, notifications);
+      const result = await service.redeemCode('u1', dto, ctx);
+
+      expect(result.pointsEarned).toBe(20);
+      expect(transaction).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws ConflictException (not the raw Prisma error) once retries are exhausted', async () => {
+      const transaction = jest.fn().mockRejectedValue(p2034());
+      const prisma = {
+        outlet: { findUnique: jest.fn().mockResolvedValue(null) },
+        user: {
+          findUnique: jest
+            .fn()
+            .mockResolvedValue({ role: 'CUSTOMER', assignedOutletId: null }),
+        },
+        $transaction: transaction,
+      } as unknown as PrismaService;
+
+      const service = new LoyaltyService(prisma, crypto, fraud, notifications);
+
+      await expect(service.redeemCode('u1', dto, ctx)).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      expect(transaction).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not retry a non-P2034 error (e.g. already-redeemed) and propagates it unchanged', async () => {
+      const alreadyRedeemedCode = {
+        id: 'c1',
+        status: 'REDEEMED',
+        campaign: { status: 'ACTIVE' },
+      };
+      const prisma = buildPrisma(alreadyRedeemedCode);
+      const service = new LoyaltyService(prisma, crypto, fraud, notifications);
+
+      await expect(service.redeemCode('u1', dto, ctx)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
   });
 });

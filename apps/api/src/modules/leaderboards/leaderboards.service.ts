@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
-import { LeaderboardType } from '@prisma/client';
+import { LeaderboardType, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
@@ -129,6 +129,9 @@ export class LeaderboardsService {
       'ALL',
       outlets.map((o) => ({ score: o.totalPoints, outletId: o.id })),
     );
+    // Dashboard rank cards read Outlet.nationalRank directly; keep it in
+    // sync with the ranking we just wrote (see persistRanks for query count).
+    await this.persistRanks('nationalRank', outlets.map((o) => o.id));
   }
 
   private async recomputeOutletRegional(): Promise<void> {
@@ -145,6 +148,10 @@ export class LeaderboardsService {
       byRegion.set(o.regionId, list);
     }
     for (const [regionId, list] of byRegion) {
+      // deleteRegionId scopes upsertRanked's DELETE to this region only —
+      // without it, each iteration wipes out every other region's rows
+      // written earlier in this same loop (they all share the same
+      // type/period).
       await this.upsertRanked(
         'OUTLET_REGIONAL',
         'ALL',
@@ -153,7 +160,9 @@ export class LeaderboardsService {
           outletId: o.id,
           regionId,
         })),
+        regionId,
       );
+      await this.persistRanks('regionalRank', list.map((o) => o.id));
     }
   }
 
@@ -163,6 +172,13 @@ export class LeaderboardsService {
    * (userId/outletId/campaignId), and in SQL NULLs are never equal — so an
    * upsert on it could not reliably dedupe. Delete-then-insert is also faster
    * for a full recompute. Runs atomically.
+   *
+   * @param deleteRegionId scopes the DELETE to a single region. Used by
+   * recomputeOutletRegional, which calls this once per region against the
+   * same (type, period) — without scoping, each region's delete would wipe
+   * out the rows the previous regions just inserted. The other three
+   * recompute* methods write one global ranking and correctly omit this,
+   * leaving the delete unscoped (global) for their type.
    */
   private async upsertRanked(
     type: LeaderboardType,
@@ -174,9 +190,12 @@ export class LeaderboardsService {
       regionId?: string;
       campaignId?: string;
     }>,
+    deleteRegionId?: string,
   ): Promise<void> {
     await this.prisma.$transaction([
-      this.prisma.leaderboardEntry.deleteMany({ where: { type, period } }),
+      this.prisma.leaderboardEntry.deleteMany({
+        where: { type, period, ...(deleteRegionId ? { regionId: deleteRegionId } : {}) },
+      }),
       this.prisma.leaderboardEntry.createMany({
         data: subjects.map((s, i) => ({
           type,
@@ -190,6 +209,40 @@ export class LeaderboardsService {
         })),
       }),
     ]);
+  }
+
+  /**
+   * Bulk-write Outlet.nationalRank / Outlet.regionalRank from an
+   * already-ranked outlet id list (index+1 = rank). A nationwide campaign
+   * can have thousands of outlets, so this issues a single
+   * `UPDATE ... FROM (VALUES ...)` statement rather than one UPDATE per
+   * outlet. Called once per recomputeOutletNational() invocation (1 query)
+   * and once per region per recomputeOutletRegional() invocation (1 query
+   * per region — matching the existing per-region upsertRanked call).
+   */
+  private async persistRanks(
+    column: 'nationalRank' | 'regionalRank',
+    rankedOutletIds: string[],
+  ): Promise<void> {
+    if (rankedOutletIds.length === 0) return;
+    const values = Prisma.join(
+      rankedOutletIds.map((id, i) => Prisma.sql`(${id}::uuid, ${i + 1}::int)`),
+    );
+    if (column === 'nationalRank') {
+      await this.prisma.$executeRaw`
+        UPDATE outlets AS o
+        SET "nationalRank" = v.rank
+        FROM (VALUES ${values}) AS v(id, rank)
+        WHERE o.id = v.id
+      `;
+    } else {
+      await this.prisma.$executeRaw`
+        UPDATE outlets AS o
+        SET "regionalRank" = v.rank
+        FROM (VALUES ${values}) AS v(id, rank)
+        WHERE o.id = v.id
+      `;
+    }
   }
 
   private defaultPeriod(type: LeaderboardType): string {

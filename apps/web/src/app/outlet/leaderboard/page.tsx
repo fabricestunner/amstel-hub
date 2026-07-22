@@ -15,6 +15,7 @@ import {
   useOutletCustomerLeaderboard,
   useOutletLeaderboard,
 } from '@/features/leaderboard/use-leaderboard';
+import { useOutletDashboard } from '@/features/outlets/use-outlets';
 import { useMe } from '@/lib/auth';
 
 function MyCustomersPanel({ outletId }: { outletId?: string }) {
@@ -71,7 +72,12 @@ function OutletRankingPanel({
 export default function OutletLeaderboardPage() {
   const { data: me } = useMe();
   const outletId = me?.outletId ?? undefined;
-  const regionId = me?.regionId ?? undefined;
+  const { data: dashboard } = useOutletDashboard(outletId);
+  // `User.regionId` is only populated for REGIONAL_MANAGER accounts — an
+  // outlet manager's region lives on their Outlet row instead. Prefer the
+  // outlet's region (via its dashboard), falling back to `me.regionId` so a
+  // REGIONAL_MANAGER (who has no outletId, hence no dashboard) still works.
+  const regionId = dashboard?.regionId ?? me?.regionId ?? undefined;
 
   return (
     <div className="space-y-6">
