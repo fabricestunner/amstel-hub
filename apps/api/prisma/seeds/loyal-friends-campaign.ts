@@ -47,9 +47,9 @@ export const LOYAL_FRIENDS_REWARDS: SeedRewardRow[] = [
   { name: 'Marriott Hotel Brunch',                          pointsCost: 420, type: 'GIFT_ITEM',        phase: 'Grand Finale',         bottles: 840,   audience: 'CONSUMER', perUserLimit: 1,   activeAtLaunch: true },
   { name: 'Nyungwe Canopy Walk',                            pointsCost: 480, type: 'GIFT_ITEM',        phase: 'Grand Finale',         bottles: 960,   audience: 'CONSUMER', perUserLimit: 1,   activeAtLaunch: true },
   { name: 'Bicycle - Regional Second-Best Prize',           pointsCost: 600, type: 'MERCHANDISE',      phase: 'Grand Finale',         bottles: 1200,  audience: 'CONSUMER', perUserLimit: 1,   activeAtLaunch: true },
-  { name: '25 Crates of Amstel Beer',                       pointsCost: 300, type: 'GIFT_ITEM',        phase: 'Grand Finale',         bottles: 7200,  audience: 'OUTLET',   perUserLimit: 1,   activeAtLaunch: false },
-  { name: 'Professional Pool Table - Regional Best Prize',  pointsCost: 335, type: 'GIFT_ITEM',        phase: 'Grand Finale',         bottles: 8040,  audience: 'OUTLET',   perUserLimit: 1,   activeAtLaunch: false },
-  { name: '50 Crates of Amstel Beer',                       pointsCost: 500, type: 'GIFT_ITEM',        phase: 'Grand Finale',         bottles: 12000, audience: 'OUTLET',   perUserLimit: 1,   activeAtLaunch: false },
+  { name: '25 Crates of Amstel Beer',                       pointsCost: 300, type: 'GIFT_ITEM',        phase: 'Grand Finale',         bottles: 7200,  audience: 'OUTLET',   perUserLimit: 1,   activeAtLaunch: true },
+  { name: 'Professional Pool Table - Regional Best Prize',  pointsCost: 335, type: 'GIFT_ITEM',        phase: 'Grand Finale',         bottles: 8040,  audience: 'OUTLET',   perUserLimit: 1,   activeAtLaunch: true },
+  { name: '50 Crates of Amstel Beer',                       pointsCost: 500, type: 'GIFT_ITEM',        phase: 'Grand Finale',         bottles: 12000, audience: 'OUTLET',   perUserLimit: 1,   activeAtLaunch: true },
 ];
 
 export const STAGE_TOURNAMENTS = [
@@ -93,6 +93,30 @@ export async function seedLoyalFriendsCampaign(prisma: PrismaClient) {
   });
 
   for (const row of LOYAL_FRIENDS_REWARDS) {
+    if (row.audience === 'OUTLET') {
+      // Outlet-tier prizes live in the standing OutletReward catalog (not
+      // campaign-scoped) — that's what OutletRewardsService.list/redeem and
+      // the /outlet/rewards portal page actually read from.
+      const existing = await prisma.outletReward.findFirst({
+        where: { name: row.name },
+        select: { id: true },
+      });
+      if (existing) continue;
+      await prisma.outletReward.create({
+        data: {
+          name: row.name,
+          description: rewardDescription(row),
+          status: row.activeAtLaunch ? 'ACTIVE' : 'INACTIVE',
+          pointsCost: row.pointsCost,
+          // Inventory is managed from the admin dashboard; null = unlimited
+          // until the client sets real stock.
+          totalInventory: null,
+          remainingInventory: null,
+        },
+      });
+      continue;
+    }
+
     const existing = await prisma.reward.findFirst({
       where: { campaignId: campaign.id, name: row.name },
       select: { id: true },

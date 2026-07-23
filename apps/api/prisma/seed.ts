@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, RewardType } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, createCipheriv, randomBytes } from 'node:crypto';
 import { seedLoyalFriendsCampaign } from './seeds/loyal-friends-campaign';
@@ -175,17 +175,34 @@ async function main() {
     });
   }
 
-  // ── Rewards ─────────────────────────────────────────────────
-  await prisma.reward.createMany({
-    data: [
-      // Entry-level reward: 2 points (= 2 beers) buys 1 voucher.
-      { campaignId: campaign.id, name: 'Amstel Voucher', type: 'COUPON', pointsCost: 2, status: 'ACTIVE' },
-      { campaignId: campaign.id, name: 'Tournament Entry', type: 'TOURNAMENT_ENTRY', pointsCost: 100, status: 'ACTIVE' },
-      { campaignId: campaign.id, name: 'Branded T-Shirt', type: 'MERCHANDISE', pointsCost: 150, totalInventory: 500, remainingInventory: 500, status: 'ACTIVE' },
-      { campaignId: campaign.id, name: 'Free Amstel (2)', type: 'FREE_DRINK', pointsCost: 80, status: 'ACTIVE' },
-    ],
-    skipDuplicates: true,
-  });
+  // ── Rewards (demo catalog) ──────────────────────────────────
+  // Find-or-create per (campaignId, name). The rewards table has no unique
+  // constraint on name, so createMany + skipDuplicates is NOT idempotent here
+  // — it re-inserts these four on every seed run. Matches the same
+  // find-or-create pattern used in seedLoyalFriendsCampaign.
+  const demoRewards: Array<{
+    name: string;
+    type: RewardType;
+    pointsCost: number;
+    totalInventory?: number;
+    remainingInventory?: number;
+  }> = [
+    // Entry-level reward: 2 points (= 2 beers) buys 1 voucher.
+    { name: 'Amstel Voucher', type: 'COUPON', pointsCost: 2 },
+    { name: 'Tournament Entry', type: 'TOURNAMENT_ENTRY', pointsCost: 100 },
+    { name: 'Branded T-Shirt', type: 'MERCHANDISE', pointsCost: 150, totalInventory: 500, remainingInventory: 500 },
+    { name: 'Free Amstel (2)', type: 'FREE_DRINK', pointsCost: 80 },
+  ];
+  for (const r of demoRewards) {
+    const existing = await prisma.reward.findFirst({
+      where: { campaignId: campaign.id, name: r.name },
+      select: { id: true },
+    });
+    if (existing) continue;
+    await prisma.reward.create({
+      data: { campaignId: campaign.id, status: 'ACTIVE', ...r },
+    });
+  }
 
   // ── Tournament ──────────────────────────────────────────────
   await prisma.tournament.upsert({
