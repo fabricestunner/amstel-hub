@@ -8,7 +8,6 @@ import {
   Loader2,
   QrCode,
   ScanLine,
-  Sparkles,
   TrendingUp,
   X,
 } from 'lucide-react';
@@ -150,7 +149,7 @@ export default function CustomerDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2.5 text-xl">
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-amstel-gold/15 text-amstel-gold">
-                <Sparkles className="h-5 w-5" />
+                <ScanLine className="h-5 w-5" />
               </span>
               Scan a Code
             </CardTitle>
