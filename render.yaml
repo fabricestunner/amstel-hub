@@ -12,8 +12,23 @@ services:
     plan: starter
     rootDir: .
     buildCommand: pnpm install --frozen-lockfile && pnpm rebuild argon2 && pnpm --filter @amstel/api db:generate && pnpm --filter @amstel/api build
-    # Apply migrations on every deploy, then boot. Render injects PORT.
-    startCommand: pnpm --filter @amstel/api exec prisma db push --accept-data-loss && pnpm --filter @amstel/api db:seed; node apps/api/dist/main.js
+    # Apply pending migrations, then boot. Render injects PORT.
+    #
+    # NOTE — deliberately does NOT run `db:seed` or `db push`:
+    #   • `db push --accept-data-loss` + `db:seed` on EVERY deploy re-seeded prod
+    #     each time, which duplicated the demo rewards ~20× (see
+    #     prisma/cleanup-prod-rewards.ts). Seeding is a ONE-TIME step, run
+    #     manually from the Render Shell on a fresh database:
+    #         pnpm --filter @amstel/api db:seed
+    #   • `migrate deploy` only applies pending migrations — no data loss, no
+    #     re-seeding.
+    #
+    # ONE-TIME baseline (run once in the Render Shell BEFORE the first deploy
+    # that uses this command): the existing prod DB was built with `db push` and
+    # has no migration history, so mark the baseline migration as already
+    # applied — otherwise `migrate deploy` tries to re-create existing tables:
+    #     pnpm --filter @amstel/api exec prisma migrate resolve --applied 20260721202151_outlet_points_and_rewards
+    startCommand: pnpm --filter @amstel/api db:deploy && node apps/api/dist/main.js
     healthCheckPath: /api/v1/health
     autoDeploy: true
     # Custom domain for the API. Render provisions TLS automatically once the

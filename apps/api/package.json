@@ -19,6 +19,7 @@
     "db:seed": "ts-node prisma/seed.ts",
     "backfill:reward-categories": "ts-node prisma/backfill-reward-categories.ts",
     "backfill:outlet-points": "ts-node prisma/backfill-outlet-points.ts",
+    "cleanup:prod-rewards": "ts-node prisma/cleanup-prod-rewards.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
