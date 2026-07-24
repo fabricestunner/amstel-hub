@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { PrismaClient, RewardType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 import { createHash, createCipheriv, randomBytes } from 'node:crypto';
 import { seedLoyalFriendsCampaign } from './seeds/loyal-friends-campaign';
@@ -175,34 +175,10 @@ async function main() {
     });
   }
 
-  // ── Rewards (demo catalog) ──────────────────────────────────
-  // Find-or-create per (campaignId, name). The rewards table has no unique
-  // constraint on name, so createMany + skipDuplicates is NOT idempotent here
-  // — it re-inserts these four on every seed run. Matches the same
-  // find-or-create pattern used in seedLoyalFriendsCampaign.
-  const demoRewards: Array<{
-    name: string;
-    type: RewardType;
-    pointsCost: number;
-    totalInventory?: number;
-    remainingInventory?: number;
-  }> = [
-    // Entry-level reward: 2 points (= 2 beers) buys 1 voucher.
-    { name: 'Amstel Voucher', type: 'COUPON', pointsCost: 2 },
-    { name: 'Tournament Entry', type: 'TOURNAMENT_ENTRY', pointsCost: 100 },
-    { name: 'Branded T-Shirt', type: 'MERCHANDISE', pointsCost: 150, totalInventory: 500, remainingInventory: 500 },
-    { name: 'Free Amstel (2)', type: 'FREE_DRINK', pointsCost: 80 },
-  ];
-  for (const r of demoRewards) {
-    const existing = await prisma.reward.findFirst({
-      where: { campaignId: campaign.id, name: r.name },
-      select: { id: true },
-    });
-    if (existing) continue;
-    await prisma.reward.create({
-      data: { campaignId: campaign.id, status: 'ACTIVE', ...r },
-    });
-  }
+  // ── Rewards ─────────────────────────────────────────────────
+  // The real reward catalog (consumer + outlet tiers) is seeded by
+  // seedLoyalFriendsCampaign below. No demo/sample rewards are created here —
+  // the client-facing catalog must contain only the campaign's actual prizes.
 
   // ── Tournament ──────────────────────────────────────────────
   await prisma.tournament.upsert({

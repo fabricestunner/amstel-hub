@@ -33,7 +33,7 @@ export const LOYAL_FRIENDS_REWARDS: SeedRewardRow[] = [
   // Launches INACTIVE: the customer redeem dialog has no tournament picker yet
   // and the four stage tournaments seed as DRAFT — activate from the dashboard
   // once registration opens, or entry attempts would 400 on a missing tournamentId.
-  { name: 'Tournament Entry Qualification',                 pointsCost: 12,  type: 'TOURNAMENT_ENTRY', phase: 'Point Accumulation',   bottles: 24,    audience: 'CONSUMER', perUserLimit: 1,   activeAtLaunch: false },
+  { name: 'Tournament Entry Qualification',                 pointsCost: 12,  type: 'TOURNAMENT_ENTRY', phase: 'Point Accumulation',   bottles: 24,    audience: 'CONSUMER', perUserLimit: 1,   activeAtLaunch: true },
   { name: 'Branded Key Holder',                             pointsCost: 36,  type: 'MERCHANDISE',      phase: 'Point Accumulation',   bottles: 72,    audience: 'CONSUMER', perUserLimit: 1,   activeAtLaunch: true },
   { name: 'Branded Bottle Opener',                          pointsCost: 36,  type: 'MERCHANDISE',      phase: 'Point Accumulation',   bottles: 72,    audience: 'CONSUMER', perUserLimit: 1,   activeAtLaunch: true },
   { name: 'Beer Bucket for the Group',                      pointsCost: 48,  type: 'FREE_DRINK',       phase: 'Outlet Qualifiers',    bottles: 96,    audience: 'CONSUMER', perUserLimit: 1,   activeAtLaunch: true },
